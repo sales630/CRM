@@ -1716,7 +1716,7 @@ export default function StreamFeed() {
       const attachments = data.attachments || [];
       const imageAttachment = attachments.find(a => a.fileType?.startsWith("image/"));
       const imageUrl = imageAttachment
-        ? (imageAttachment.url?.startsWith("http") ? imageAttachment.url : `http://localhost:5000${imageAttachment.url}`)
+        ? (imageAttachment.url?.startsWith("http") ? imageAttachment.url : `${process.env.REACT_APP_API_URL || "http://localhost:5000"}${imageAttachment.url}`)
         : null;
 
       const post = await streamAPI.createPost({
