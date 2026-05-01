@@ -14,10 +14,10 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" }, { urls: "stun:stun3.l.google.com:19302" }, { urls: "stun:stun4.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }, { urls: "stun:global.stun.twilio.com:3478" },
     // Free TURN relay — allows calls across different networks (home ↔ office)
     {
-      urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turns:openrelay.metered.ca:443"],
+      urls: "stun:stun.l.google.com:19305" /* openrelayproject TURN was shut down in 2025 — sign up at https://www.metered.ca for free TURN and put real turn URL here */,
       username:   "openrelayproject",
       credential: "openrelayproject",
     },
