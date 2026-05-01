@@ -756,7 +756,7 @@ export default function SuperAdminPanel() {
                         { key: "App Name",       value: "Back Office CRM" },
                         { key: "Version",        value: "2.0.0" },
                         { key: "Environment",    value: "Production" },
-                        { key: "API Base URL",   value: (process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api" },
+                        { key: "API Base URL",   value: "http://localhost:5000/api" },
                         { key: "Authentication", value: "JWT (HS256, 7-day expiry)" },
                         { key: "Database",       value: "JSON File (crm-data.json)" },
                         { key: "Total Collections", value: "18" },

@@ -14,7 +14,7 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import { devopsAPI } from "services/api";
 
-const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api";
+const API_BASE = "http://localhost:5000/api";
 
 // ── Colour helpers ────────────────────────────────────────────────────────
 const statusColor = (s) => ({ active: "success", inactive: "default", paused: "warning" }[s] || "default");
@@ -997,7 +997,7 @@ export default function DevOpsPage() {
 
   // ── Tab: Documentation ───────────────────────────────────────────────────
   const renderDocs = () => {
-    const baseUrl = (process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api";
+    const baseUrl = "http://localhost:5000/api";
     const endpoints = [
       { method: "POST", path: "/devops/receive/:token", auth: false, desc: "Inbound webhook receiver — creates a Lead/Contact/Task from form data. Replace :token with your webhook token.", body: '{ "name": "John", "email": "j@example.com", "phone": "+1-555-0100" }', response: '{ "success": true, "data": { "entity_type": "lead", "entity_id": "uuid" } }' },
       { method: "GET",  path: "/devops/webhooks", auth: true, desc: "List all configured webhooks (requires auth token).", body: null, response: '{ "success": true, "data": [...webhooks] }' },
@@ -1061,7 +1061,7 @@ export default function DevOpsPage() {
               Paste your inbound webhook URL as the form action to automatically create CRM leads when the form is submitted.
             </Typography>
             <Box component="pre" p={2} bgcolor="#1e1e1e" color="#d4d4d4" borderRadius={1} sx={{ fontFamily: "monospace", fontSize: "0.75rem", overflowX: "auto" }}>
-{`<form method="POST" action="${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/devops/receive/YOUR_TOKEN_HERE">
+{`<form method="POST" action="http://localhost:5000/api/devops/receive/YOUR_TOKEN_HERE">
   <input type="text"  name="name"    placeholder="Your Name"  required />
   <input type="email" name="email"   placeholder="Email"      required />
   <input type="tel"   name="phone"   placeholder="Phone"               />

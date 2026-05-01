@@ -132,6 +132,7 @@ export function CallProvider({ children }) {
   const createPC = (targetUserId) => {
     if (pcRef.current) { try { pcRef.current.close(); } catch {} }
     const pc = new RTCPeerConnection(ICE_SERVERS);
+    pc._remoteStream = new MediaStream(); // accumulates all incoming tracks
     pcRef.current = pc;
 
     pc.onicecandidate = ({ candidate }) => {
@@ -139,8 +140,26 @@ export function CallProvider({ children }) {
     };
 
     pc.ontrack = (e) => {
-      if (e.streams?.[0]) {
-        setRemoteStream(e.streams[0]);
+      // Some browsers fire ontrack with e.streams empty — always add track to our own stream
+      let stream;
+      if (e.streams && e.streams.length > 0) {
+        // Use the stream provided by the browser (preferred)
+        stream = e.streams[0];
+        // Also mirror into _remoteStream in case we switch references later
+        e.streams[0].getTracks().forEach(t => {
+          if (!pc._remoteStream.getTracks().find(x => x.id === t.id)) {
+            pc._remoteStream.addTrack(t);
+          }
+        });
+      } else if (e.track) {
+        // Build stream manually — add track if not already present
+        if (!pc._remoteStream.getTracks().find(x => x.id === e.track.id)) {
+          pc._remoteStream.addTrack(e.track);
+        }
+        stream = pc._remoteStream;
+      }
+      if (stream) {
+        setRemoteStream(stream);
         if (callStateRef.current !== "active") { setCS("active"); startTimer(); }
       }
     };
@@ -333,7 +352,7 @@ export function CallProvider({ children }) {
     remoteUserRef.current = ru;
     setRemoteUser(ru);
     setCallType(cType || "video");
-    setCS("active");
+    setCS("connecting"); // will become "active" once ontrack / ICE fires
 
     const stream = await getMedia(cType || "video");
     if (!stream) { doCleanup(); return; }

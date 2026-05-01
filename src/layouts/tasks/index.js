@@ -1713,7 +1713,7 @@ export default function Tasks() {
   const fixTaskTitles = async () => {
     try {
       const token = localStorage.getItem("token");
-      await fetch((process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api/tasks/fix-titles", {
+      await fetch("http://localhost:5000/api/tasks/fix-titles", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
@@ -1724,7 +1724,7 @@ export default function Tasks() {
     setSyncPolling(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch((process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api/tasks/reset-and-poll", {
+      const res = await fetch("http://localhost:5000/api/tasks/reset-and-poll", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });

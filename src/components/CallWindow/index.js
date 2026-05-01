@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box, Typography, IconButton, Avatar, Tooltip, Chip,
 } from "@mui/material";
@@ -27,19 +27,38 @@ export default function CallWindow() {
 
   const localVideoRef  = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const dragRef        = useRef(null);
   const dragState      = useRef({ dragging: false, ox: 0, oy: 0 });
   const [pos, setPos]  = useState({ x: 24, y: 24 });
   const [minimized, setMinimized] = useState(false);
   const [expanded, setExpanded]   = useState(false);
 
-  // Attach streams to video elements
+  // Attach local stream to local video
   useEffect(() => {
-    if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
+    }
   }, [localStream]);
 
+  // Attach remote stream to dedicated <audio> element — handles audio for ALL call types
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
+    const audio = remoteAudioRef.current;
+    if (audio && remoteStream) {
+      audio.srcObject = remoteStream;
+      audio.play().catch(() => {});
+    }
+  }, [remoteStream]);
+
+  // Attach remote stream to <video> element when it is mounted (callback ref)
+  // Also update whenever remoteStream changes (useCallback recreates fn → React calls it again)
+  const setRemoteVideoRef = useCallback((el) => {
+    remoteVideoRef.current = el;
+    if (el && remoteStream) {
+      el.srcObject = remoteStream;
+      el.play().catch(() => {});
+    }
   }, [remoteStream]);
 
   // Drag handlers
@@ -60,6 +79,13 @@ export default function CallWindow() {
 
   if (callState === "idle" || callState === "incoming") return null;
 
+  // Determine display labels
+  const statusLabel = callState === "active"
+    ? fmtDuration(callDuration)
+    : callState === "calling"
+      ? "Ringing…"
+      : "Connecting…";
+
   const isVideo = callType === "video";
   const hasRemoteVideo = !!remoteStream && isVideo;
 
@@ -67,6 +93,10 @@ export default function CallWindow() {
   const h = expanded ? 560 : minimized ? 52 : isVideo ? 280 : 160;
 
   return (
+    <>
+    {/* Remote audio — always present so audio plays even when minimized or camera is off */}
+    <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
+
     <Box
       ref={dragRef}
       sx={{
@@ -108,7 +138,7 @@ export default function CallWindow() {
           </Typography>
           {!minimized && (
             <Typography sx={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.5)", lineHeight: 1 }}>
-              {callState === "active" ? fmtDuration(callDuration) : callState === "calling" ? "Ringing…" : "Connecting…"}
+              {statusLabel}
             </Typography>
           )}
         </Box>
@@ -128,10 +158,12 @@ export default function CallWindow() {
         <Box sx={{ flex: 1, position: "relative", bgcolor: "#0f1923", overflow: "hidden" }}>
           {/* Remote video / avatar */}
           {hasRemoteVideo ? (
+            // Use callback ref so srcObject is set immediately when this element mounts
             <video
-              ref={remoteVideoRef}
+              ref={setRemoteVideoRef}
               autoPlay
               playsInline
+              muted
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
@@ -141,20 +173,26 @@ export default function CallWindow() {
               </Avatar>
               <Typography sx={{ color: "#fff", fontWeight: 700, fontSize: "1rem" }}>{remoteUser?.userName}</Typography>
               <Typography sx={{ color: "rgba(255,255,255,0.5)", fontSize: "0.78rem" }}>
-                {callState === "calling" ? "Calling…" : isVideo && isCamOff ? "Camera off" : "Audio call"}
+                {callState === "calling" ? "Calling…" : callState === "connecting" ? "Connecting…" : isVideo && isCamOff ? "Camera off" : "Audio call"}
               </Typography>
-              {callState === "active" && (
+              {(callState === "active" || callState === "connecting") && (
                 <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#21a038", animation: "pulse 1.5s infinite", "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } } }} />
               )}
-              {/* hidden remote video for audio */}
-              <video ref={remoteVideoRef} autoPlay playsInline style={{ display: "none" }} />
+              {/* Note: audio is handled by the always-present <audio> element above */}
             </Box>
           )}
 
-          {/* Local video (PiP) */}
+          {/* Local video (PiP) — callback ref re-attaches srcObject if element remounts */}
           {isVideo && localStream && !isCamOff && !isSharingScreen && (
             <Box sx={{ position: "absolute", bottom: 10, right: 10, width: 90, height: 68, borderRadius: "8px", overflow: "hidden", border: "2px solid rgba(255,255,255,0.2)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
-              <video ref={localVideoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+              <video
+                ref={(el) => {
+                  localVideoRef.current = el;
+                  if (el && localStream) { el.srcObject = localStream; el.play().catch(() => {}); }
+                }}
+                autoPlay playsInline muted
+                style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }}
+              />
             </Box>
           )}
           {/* Screen share label */}
@@ -210,5 +248,6 @@ export default function CallWindow() {
         </Box>
       )}
     </Box>
+    </>
   );
 }

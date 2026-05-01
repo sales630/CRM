@@ -1188,9 +1188,10 @@
       "status": "active",
       "password_hash": "e132727c16ce829fe1b4a66d30b016db:7fff7a2321753b06b365bdcd5ae4225be07c36211acc5b6e9bf002f0682276cca5029c8cb4984b948383ecc6b93d926d69ba92a01775d1fe038bcc4e644e6b03",
       "created_at": "2026-04-18T05:44:12.398Z",
-      "updated_at": "2026-04-27T12:26:21.092Z",
+      "updated_at": "2026-05-01T05:29:50.553Z",
       "webhook_token": "d5d758782e54061db551206f5fcb31ece17c95663280f6ee6f45647bf2112e80",
-      "task_email_token": "17abfe57"
+      "task_email_token": "17abfe57",
+      "session_token": "b75f55c7402219202e555b08dc0b981cd4533216cc3694d8f23f3209b2c16f53"
     },
     {
       "name": "Vishal Gudwani",
@@ -6082,29 +6083,16 @@
     },
     {
       "type": "heartbeat",
-      "message": "{\"userId\":\"7c1284ab-57bc-4026-92f8-4c1470a2848b\",\"userName\":\"Sunil Khullar\",\"ts\":1777540884688}",
+      "message": "{\"userId\":\"mo3wwktqbl98gvcde\",\"userName\":\"Amit kumar\",\"ts\":1777617519084}",
       "title": "",
       "entity_type": "presence",
-      "entity_id": "7c1284ab-57bc-4026-92f8-4c1470a2848b",
+      "entity_id": "mo3wwktqbl98gvcde",
       "user": "all",
       "target": "all",
       "read": false,
-      "id": "89baf01a-c721-4ea7-a720-0a98310646cd",
-      "created_at": "2026-04-30T09:13:43.372Z",
-      "updated_at": "2026-04-30T09:21:24.699Z"
-    },
-    {
-      "type": "heartbeat",
-      "message": "{\"userId\":\"bf9778b9-2bde-486d-81af-0fe0df3abfc2\",\"userName\":\"Mohinder Singh\",\"ts\":1777540871323}",
-      "title": "",
-      "entity_type": "presence",
-      "entity_id": "bf9778b9-2bde-486d-81af-0fe0df3abfc2",
-      "user": "all",
-      "target": "all",
-      "read": false,
-      "id": "e8f52543-d490-4abd-8434-d079807e957c",
-      "created_at": "2026-04-30T09:14:11.317Z",
-      "updated_at": "2026-04-30T09:21:11.331Z"
+      "id": "9adae92c-c206-4560-8491-e02671863261",
+      "created_at": "2026-05-01T06:29:49.811Z",
+      "updated_at": "2026-05-01T06:38:39.091Z"
     }
   ],
   "scheduled_reports": [],
@@ -6378,6 +6366,21 @@
       "id": "76473e92-ffb2-4dba-8904-48bb2b3ecb65",
       "created_at": "2026-04-30T05:00:26.078Z",
       "updated_at": "2026-04-30T05:00:26.078Z"
+    },
+    {
+      "user_id": "mo3wwktqbl98gvcde",
+      "user_name": "Amit kumar",
+      "department": "Management",
+      "date": "2026-05-01",
+      "clock_in": "2026-05-01T06:03:59.628Z",
+      "clock_out": null,
+      "duration_minutes": 0,
+      "status": "active",
+      "breaks": [],
+      "notes": "",
+      "id": "5d129155-7d0a-4309-baad-84a78a6c3330",
+      "created_at": "2026-05-01T06:03:59.628Z",
+      "updated_at": "2026-05-01T06:03:59.628Z"
     }
   ],
   "work_reports": [],
@@ -11871,11 +11874,11 @@
       "smtp_port": 587,
       "smtp_secure": false,
       "status": "connected",
-      "last_sync": "2026-04-30T05:38:48.657Z",
+      "last_sync": "2026-05-01T06:18:07.971Z",
       "is_main_inbox": true,
       "id": "073e3224-b786-4e8d-940b-a64fb987175c",
       "created_at": "2026-04-28T11:04:45.393Z",
-      "updated_at": "2026-04-30T05:38:48.657Z"
+      "updated_at": "2026-05-01T06:18:07.971Z"
     }
   ],
   "mail_cache": [],
@@ -15733,6 +15736,20 @@
       "id": "2d5d873a-20fa-4cd2-a279-219d05919749",
       "created_at": "2026-04-29T06:29:13.107Z",
       "updated_at": "2026-04-29T06:29:13.107Z"
+    },
+    {
+      "user_id": "mo3wwktqbl98gvcde",
+      "user_name": "Amit kumar",
+      "user_role": "admin",
+      "action": "login",
+      "module": "auth",
+      "entity_id": "",
+      "entity_title": "",
+      "detail": "Amit kumar (admin) signed in",
+      "ip": "::ffff:127.0.0.1",
+      "id": "dc4f1aaa-19f2-47fb-82b8-489c06578e30",
+      "created_at": "2026-05-01T05:29:50.558Z",
+      "updated_at": "2026-05-01T05:29:50.558Z"
     }
   ],
   "workflows": [

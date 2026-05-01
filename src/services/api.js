@@ -1,5 +1,5 @@
 /* eslint-disable */
-const BASE_URL = (process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api";
+const BASE_URL = "http://localhost:5000/api";
 
 function getToken() {
   return localStorage.getItem("crm_token") || "";
@@ -62,7 +62,7 @@ export function uploadFile(file) {
   });
 }
 
-export const FILE_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+export const FILE_BASE_URL = "http://localhost:5000";
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 export const authAPI = {

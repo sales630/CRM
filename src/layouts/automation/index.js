@@ -16,7 +16,7 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import { usersAPI } from "services/api";
 import { useAuth } from "context/AuthContext";
 
-const API = (process.env.REACT_APP_API_URL || "http://localhost:5000") + "/api";
+const API = "http://localhost:5000/api";
 const token = () => localStorage.getItem("crm_token");
 const req = async (method, path, body) => {
   try {
