@@ -17,9 +17,9 @@ const ICE_SERVERS = {
     { urls: "stun:stun2.l.google.com:19302" }, { urls: "stun:stun3.l.google.com:19302" }, { urls: "stun:stun4.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }, { urls: "stun:global.stun.twilio.com:3478" },
     // Free TURN relay — allows calls across different networks (home ↔ office)
     {
-      urls: "stun:stun.l.google.com:19305" /* openrelayproject TURN was shut down in 2025 — sign up at https://www.metered.ca for free TURN and put real turn URL here */,
-      username:   "openrelayproject",
-      credential: "openrelayproject",
+      urls: ["turn:a.relay.metered.ca:80","turn:a.relay.metered.ca:80?transport=tcp","turn:a.relay.metered.ca:443","turns:a.relay.metered.ca:443?transport=tcp"] /* openrelayproject TURN was shut down in 2025 — sign up at https://www.metered.ca for free TURN and put real turn URL here */,
+      username:   "06cb337f598fdcfaaa37f3b1",
+      credential: "zcAopN9nx6/2DSsQ",
     },
   ],
 };
