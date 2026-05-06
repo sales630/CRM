@@ -166,14 +166,14 @@ export function CallProvider({ children }) {
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected")  { setCS("active"); startTimer(); }
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") doCleanup();
+      console.log("[Conn]", pc.connectionState); if (pc.connectionState === "closed") doCleanup();
     };
 
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         setCS("active"); startTimer();
       }
-      if (pc.iceConnectionState === "failed") doCleanup();
+      console.log("[ICE]", pc.iceConnectionState); if (pc.iceConnectionState === "failed") { console.warn("[ICE] failed - attempting restart"); try { pc.restartIce && pc.restartIce(); } catch(e){} }
     };
 
     return pc;
