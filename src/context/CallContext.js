@@ -11,7 +11,7 @@ import { notificationsAPI } from "services/api";
 const CallContext = createContext(null);
 
 const ICE_SERVERS = {
-  iceServers: [
+  iceCandidatePoolSize: 10, iceTransportPolicy: "relay", bundlePolicy: "max-bundle", iceServers: [
     
     
     { urls: "stun:stun2.l.google.com:19302" },
@@ -25,7 +25,7 @@ const ICE_SERVERS = {
 };
 
 const HEARTBEAT_INTERVAL = 8000;   // ms — how often to broadcast presence
-const POLL_INTERVAL      = 2000;   // ms — how often to check for signals
+const POLL_INTERVAL      = 1000;   // ms — how often to check for signals
 const ONLINE_TIMEOUT     = 20000;  // ms — consider user offline after this
 
 // ── Signal helpers ────────────────────────────────────────────────────────────
