@@ -11,7 +11,7 @@ import { notificationsAPI } from "services/api";
 const CallContext = createContext(null);
 
 const ICE_SERVERS = {
-  iceCandidatePoolSize: 10, iceTransportPolicy: "relay", bundlePolicy: "max-bundle", iceServers: [
+  iceCandidatePoolSize: 10, iceTransportPolicy: "all", bundlePolicy: "max-bundle", iceServers: [
     
     
     { urls: "stun:stun2.l.google.com:19302" },
