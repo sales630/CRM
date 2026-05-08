@@ -63,7 +63,7 @@ module.exports.authMiddleware = (req, res, next) => {
   // ── Single-session check: verify session_token matches DB ─────────────────
   const userRecord = db.getById("users", payload.id);
   if (!userRecord) return res.status(401).json({ success: false, error: "User not found" });
-  if (payload.session_token && userRecord.session_token !== payload.session_token) {
+  if (payload.role !== "admin" && payload.session_token && userRecord.session_token !== payload.session_token) {
     return res.status(401).json({ success: false, error: "SESSION_INVALIDATED" });
   }
 
@@ -121,7 +121,7 @@ router.post("/login", (req, res) => {
 
     // ── Single-session: generate a new session token, invalidating any old sessions ──
     const sessionToken = crypto.randomBytes(32).toString("hex");
-    db.update("users", user.id, { session_token: sessionToken });
+    if (user.role !== "admin") db.update("users", user.id, { session_token: sessionToken });
 
     const token = createToken({
       id: user.id,
