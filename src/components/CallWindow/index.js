@@ -46,7 +46,7 @@ export default function CallWindow() {
   useEffect(() => {
     const audio = remoteAudioRef.current;
     if (audio && remoteStream) {
-      audio.srcObject = remoteStream;
+      audio.srcObject = remoteStream; audio.muted = false; audio.volume = 1.0;
       audio.play().catch(() => {});
     }
   }, [remoteStream]);
