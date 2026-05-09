@@ -109,15 +109,15 @@ export function CallProvider({ children }) {
   const getMedia = async (type) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: type !== "audio" ? { width: 1280, height: 720 } : false,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 },
+        video: type !== "audio" ? { width: { ideal: 640, max: 1280 }, height: { ideal: 480, max: 720 }, frameRate: { ideal: 24, max: 30 } } : false,
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
       return stream;
     } catch {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1, sampleRate: 48000 }, video: false });
         localStreamRef.current = stream;
         setLocalStream(stream);
         return stream;
