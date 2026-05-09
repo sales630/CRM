@@ -50,7 +50,7 @@ export function CallProvider({ children }) {
         incomingCallRef.current = null;
   }, []);
 
-  const startCall = useCallback(async (targetUserId, type, targetUserName) => {
+  const startCall = useCallback(async (target, type, targetUserName) => { let targetUserId = target; if (target && typeof target === "object") { targetUserId = target.userId; targetUserName = target.userName; }
         if (!myId) return;
         if (callStateRef.current !== "idle") return;
         const t = (typeof type === "string") ? type : "video";
