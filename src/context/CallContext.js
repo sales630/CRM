@@ -92,7 +92,7 @@ export function CallProvider({ children }) {
         cleanup();
   }, [myId, myName, cleanup]);
 
-  const noop = useCallback(() => {}, []);
+  const noop = useCallback(() => {}, []); const isOnline = useCallback((uid) => { if (!uid) return false; const u = onlineMapRef.current.get(String(uid)); return !!(u && (Date.now() - u.lastSeen) < ONLINE_TIMEOUT); }, []);
 
   useEffect(() => {
         if (!myId) return;
@@ -181,7 +181,7 @@ export function CallProvider({ children }) {
           endCall: endCall,
           toggleMute: noop,
           toggleCam: noop,
-          toggleScreen: noop,
+          toggleScreen: noop, isOnline: isOnline, connected: true,
   }}>
 {children}
 </CallContext.Provider>
