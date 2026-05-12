@@ -17,14 +17,9 @@ const ICE_SERVERS = [
 
 const sendSig = async (toUserId, fromUserId, fromName, type, payload) => {
       try {
-              await notificationsAPI.create({
-                        type: "call_signal",
-                        user: String(toUserId),
-                        message: JSON.stringify({ signalType: type, from: String(fromUserId), fromName, payload: payload || {} }),
-                        entity_type: "call",
-                        entity_id: String(fromUserId)
-              });
-      } catch (e) { console.error("[Call] signal failed:", type, e.message); }
+      const _tok = localStorage.getItem("crm_token");
+            const _base = process.env.REACT_APP_API_URL || "https://crm-ye4r.onrender.com";
+            await fetch(_base + "/api/notifications", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + _tok }, body: JSON.stringify({ type: "call_signal", user: String(toUserId), message: JSON.stringify({ signalType: type, from: String(fromUserId), fromName, payload: payload || {} }), entity_type: "call", entity_id: String(fromUserId) }) });} catch (e) { console.error("[Call] signal failed:", type, e.message); }
 };
 
 export function CallProvider({ children }) {
