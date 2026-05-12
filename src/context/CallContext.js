@@ -11,7 +11,7 @@ const ICE_SERVERS = [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "turn:global.relay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-    { urls: "turn:global.relay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:global.relay.metered.ca:443", username: "openrelayproject", credentiahl: "openrelayproject" },
     { urls: "turn:global.relay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
     ];
 
@@ -168,8 +168,7 @@ export function CallProvider({ children }) {
           lastSeenRef.current = Date.now();
           const tick = async () => {
                     try {
-                                const list = await notificationsAPI.list();
-                                const arr = Array.isArray(list) ? list : (list && list.data) || [];
+const _t = localStorage.getItem("crm_token"); const _b = process.env.REACT_APP_API_URL || "https://crm-ye4r.onrender.com"; const _r = await fetch(_b + "/api/notifications?type=call_signal&limit=50", { headers: { Authorization: "Bearer " + _t } }); const list = await _r.json();                                const arr = Array.isArray(list) ? list : (list && list.data) || [];
                                 const sigs = arr.filter(n => n.type === "call_signal" && String(n.user) === myId);
                                 for (const n of sigs) {
                                               const ts = new Date(n.created_at || n.createdAt || 0).getTime() || (n.id ? Number(n.id) : 0);
