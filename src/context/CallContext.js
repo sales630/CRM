@@ -85,6 +85,7 @@ export function CallProvider({ children }) {
   const startCall = useCallback(async (target, type, targetUserName) => {
           let targetUserId = target;
           if (target && typeof target === "object") { targetUserId = target.userId; targetUserName = target.userName; }
+          try { if (!targetUserId || String(targetUserId) === String(myId) || (typeof targetUserId === "string" && targetUserId.indexOf(" ") > -1)) { const inp = document.querySelector('[placeholder*="dm_"]'); if (inp) { const m = inp.placeholder.match(/dm_([^_]+)_([^_\s\.]+)/); if (m) { const id1 = m[1], id2 = m[2]; targetUserId = id1 === String(myId) ? id2 : id1; } } } } catch (e) {}
           if (!myId || !targetUserId) return;
           if (callStateRef.current !== "idle") return;
           const t = typeof type === "string" ? type : "video";
