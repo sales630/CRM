@@ -186,7 +186,19 @@ const _t = localStorage.getItem("crm_token"); const _b = process.env.REACT_APP_A
           return () => { cancelled = true; };
   }, [myId, handleSignal]);
 
-  const isOnline = useCallback(() => true, []);
+useEffect(() => {
+        if (!myId) return;
+        const _t = localStorage.getItem("crm_token");
+        const _b = process.env.REACT_APP_API_URL || "https://crm-ye4r.onrender.com";
+        fetch(_b + "/api/users", { headers: { Authorization: "Bearer " + _t } })
+                  .then(r => r.json())
+                  .then(d => {
+                              const arr = Array.isArray(d) ? d : (d.data || []);
+                              setOnlineUsers(arr.map(u => ({ userId: String(u.id || u._id), userName: u.name })));
+                  }).catch(() => {});
+}, [myId]);
+    
+      const isOnline = useCallback(() => true, []);
   const findOnlineUser = useCallback((nameOrId) => {
           const s = String(nameOrId);
           return onlineUsers.find(u => u.userId === s || u.userName === s);
