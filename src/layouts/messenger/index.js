@@ -606,7 +606,7 @@ export default function Messenger() {
                 <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
                   {activeRoom?.type === "direct" && (() => {
                     const otherName = getRoomDisplayName(activeRoom);
-                    const onlineUser = findOnlineUser(otherName);
+                    const otherId = (activeRoom && activeRoom.participants ? activeRoom.participants : []).find(p => String(p) !== String(currentUser && currentUser.id)); const onlineUser = findOnlineUser(otherName) || (otherId ? { userId: otherId, userName: otherName } : { userName: otherName, userId: otherName });
                     const canCall = !!onlineUser && callState === "idle";
                     return (
                       <>
