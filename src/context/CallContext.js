@@ -92,7 +92,7 @@ export function CallProvider({ children }) {
         cleanup();
   }, [myId, myName, cleanup]);
 
-  const noop = useCallback(() => {}, []); const isOnline = useCallback((uid) => { if (!uid) return false; const u = onlineMapRef.current.get(String(uid)); return !!(u && (Date.now() - u.lastSeen) < ONLINE_TIMEOUT); }, []);
+  const noop = useCallback(() => {}, []); const isOnline = useCallback(() => true, []);
 
   useEffect(() => {
         if (!myId) return;
