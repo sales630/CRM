@@ -161,8 +161,6 @@ export function CallProvider({ children }) {
                     } else { pendingICERef.current.push(c); }
           } else if (t === "reject" || t === "end") { cleanup(); }
   }, [myId, myName, cleanup]);
-} else if (t === "reject" || t === "end") { cleanup(); }
-}, [myId, myName, cleanup]);
 
   useEffect(() => {
           if (!myId) return;
