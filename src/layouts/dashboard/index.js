@@ -25,6 +25,7 @@ import InventoryIcon from "@mui/icons-material/Inventory";
 import ContactsIcon from "@mui/icons-material/Contacts";
 import { analyticsAPI, invoicesAPI, activitiesAPI } from "services/api";
 import { useAuth } from "context/AuthContext";
+import ImageSlider from "components/ImageSlider";
 
 const STAGE_COLORS = {
   "Fresh Leads": "#1976d2", "Assigned Leads": "#7b1fa2", "Connected / In Progress": "#f57c00",
@@ -106,7 +107,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) return (
-    <DashboardLayout><DashboardNavbar />
+    <DashboardLayout>
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
         <Box sx={{ textAlign: "center" }}>
           <CircularProgress size={48} />
@@ -117,7 +118,7 @@ export default function Dashboard() {
   );
 
   if (!analytics) return (
-    <DashboardLayout><DashboardNavbar />
+    <DashboardLayout>
       <Box sx={{ p: 3 }}>
         <Paper sx={{ p: 4, borderRadius: 3, textAlign: "center", border: "2px dashed #e0e0e0" }}>
           <Typography variant="h5" fontWeight={700} color="text.secondary" mb={1}>Backend Not Running</Typography>
@@ -152,6 +153,7 @@ export default function Dashboard() {
         {/* Header */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h4" fontWeight={800} color="text.primary">CRM Dashboard</Typography>
+                  <Box sx={{ mb: 3 }}><ImageSlider height={280} /></Box>
           <Typography variant="body2" color="text.secondary">
             Welcome back, {currentUser?.name || "there"} — here&apos;s your business overview for today.
           </Typography>
