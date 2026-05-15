@@ -184,3 +184,26 @@ button.MuiButton-root[class*="outlined"]:not([style*="border"]) {
 .MuiChip-root.MuiChip-outlined {
       background-color: #fff !important;
 }
+
+
+/* === v2 AGGRESSIVE OVERRIDES === */
+.MuiInputLabel-root, .MuiFormLabel-root { color: #344767 !important; font-weight: 500 !important; }
+.MuiInputBase-input, input, textarea { color: #344767 !important; }
+.MuiInputBase-input::placeholder, input::placeholder { color: #67748e !important; opacity: 1 !important; }
+.MuiSelect-select, [role="button"].MuiSelect-select { color: #344767 !important; -webkit-text-fill-color: #344767 !important; }
+button:not(.MuiIconButton-root) { font-weight: 600 !important; }
+.MuiButton-contained, .MuiButton-contained * { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+button[class*="contained"][class*="info"], button[class*="contained"][class*="primary"] { background-color: #1A73E8 !important; color: #fff !important; }
+button[class*="contained"][class*="success"] { background-color: #4CAF50 !important; color: #fff !important; }
+button[class*="contained"][class*="error"], button[class*="contained"][class*="danger"] { background-color: #F44335 !important; color: #fff !important; }
+button[class*="contained"][class*="warning"] { background-color: #fb8c00 !important; color: #fff !important; }
+button[class*="contained"][class*="dark"] { background-color: #344767 !important; color: #fff !important; }
+button[class*="outlined"][class*="info"], button[class*="outlined"][class*="primary"] { border: 1.5px solid #1A73E8 !important; color: #1A73E8 !important; background-color: #fff !important; }
+button[class*="outlined"][class*="success"] { border: 1.5px solid #4CAF50 !important; color: #4CAF50 !important; background-color: #fff !important; }
+button[class*="outlined"][class*="dark"] { border: 1.5px solid #344767 !important; color: #344767 !important; background-color: #fff !important; }
+.MuiButton-startIcon, .MuiButton-endIcon, .MuiButton-root svg, .MuiIconButton-root svg { color: inherit !important; fill: currentColor !important; }
+h1, h2, h3, h4, h5, h6, .MuiTypography-h1, .MuiTypography-h2, .MuiTypography-h3, .MuiTypography-h4, .MuiTypography-h5, .MuiTypography-h6 { color: #344767 !important; }
+.MuiTableCell-root, .MuiTableCell-head { color: #344767 !important; }
+.MuiMenuItem-root, .MuiListItemText-primary { color: #344767 !important; }
+.MuiTab-root { color: #344767 !important; font-weight: 500 !important; }
+.MuiTab-root.Mui-selected { color: #1A73E8 !important; font-weight: 600 !important; }
