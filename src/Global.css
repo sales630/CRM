@@ -207,3 +207,33 @@ h1, h2, h3, h4, h5, h6, .MuiTypography-h1, .MuiTypography-h2, .MuiTypography-h3,
 .MuiMenuItem-root, .MuiListItemText-primary { color: #344767 !important; }
 .MuiTab-root { color: #344767 !important; font-weight: 500 !important; }
 .MuiTab-root.Mui-selected { color: #1A73E8 !important; font-weight: 600 !important; }
+
+
+/* === SIDEBAR TEXT FIX - restore white text on dark sidebar === */
+.MuiDrawer-paper .MuiListItem-root .MuiListItemText-primary,
+.MuiDrawer-paper .MuiListItemText-primary,
+.MuiDrawer-paper .MuiTypography-button,
+.MuiDrawer-paper .MuiTypography-root,
+[class*="sidenav"] .MuiListItemText-primary,
+[class*="sidenav"] .MuiTypography-root {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.MuiDrawer-paper .MuiListSubheader-root,
+.MuiDrawer-paper .MuiTypography-overline,
+.MuiDrawer-paper .MuiTypography-caption {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-weight: 700 !important;
+}
+.MuiDrawer-paper .MuiSvgIcon-root,
+.MuiDrawer-paper .MuiListItemIcon-root {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+.MuiDrawer-paper .Mui-selected .MuiListItemText-primary,
+.MuiDrawer-paper .Mui-selected .MuiTypography-root,
+.MuiDrawer-paper .Mui-selected .MuiSvgIcon-root {
+  color: #fff !important;
+}
+.MuiDrawer-paper .MuiListItemButton-root:hover,
+.MuiDrawer-paper .MuiListItem-root:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
