@@ -54,3 +54,133 @@ button.MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-contained
 .MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-containedPrimary.MuiButton-sizeSmall.MuiButton-containedSizeSmall.css-ashpva-MuiButtonBase-root-MuiButton-root {
   color: #fff;
 }
+
+
+/* === BUTTON VISIBILITY FIX - applied to all buttons globally === */
+/* Contained (filled) buttons - solid background, white text */
+.MuiButton-root.MuiButton-contained,
+.MuiButton-contained {
+      color: #fff !important;
+      font-weight: 600 !important;
+}
+.MuiButton-contained.MuiButton-containedPrimary,
+.MuiButton-containedPrimary {
+      background-color: #1976d2 !important;
+      color: #fff !important;
+}
+.MuiButton-contained.MuiButton-containedSecondary,
+.MuiButton-containedSecondary {
+      background-color: #9c27b0 !important;
+      color: #fff !important;
+}
+.MuiButton-contained.MuiButton-containedSuccess,
+.MuiButton-containedSuccess {
+      background-color: #2e7d32 !important;
+      color: #fff !important;
+}
+.MuiButton-contained.MuiButton-containedError,
+.MuiButton-containedError {
+      background-color: #d32f2f !important;
+      color: #fff !important;
+}
+.MuiButton-contained.MuiButton-containedWarning,
+.MuiButton-containedWarning {
+      background-color: #ed6c02 !important;
+      color: #fff !important;
+}
+.MuiButton-contained.MuiButton-containedInfo,
+.MuiButton-containedInfo {
+      background-color: #0288d1 !important;
+      color: #fff !important;
+}
+/* Outlined buttons - visible border + colored text */
+.MuiButton-root.MuiButton-outlined,
+.MuiButton-outlined {
+      background-color: #fff !important;
+      border-width: 1.5px !important;
+      font-weight: 600 !important;
+}
+.MuiButton-outlined.MuiButton-outlinedPrimary {
+      border-color: #1976d2 !important;
+      color: #1976d2 !important;
+}
+.MuiButton-outlined.MuiButton-outlinedSecondary {
+      border-color: #9c27b0 !important;
+      color: #9c27b0 !important;
+}
+.MuiButton-outlined.MuiButton-outlinedSuccess {
+      border-color: #2e7d32 !important;
+      color: #2e7d32 !important;
+}
+.MuiButton-outlined.MuiButton-outlinedError {
+      border-color: #d32f2f !important;
+      color: #d32f2f !important;
+}
+.MuiButton-outlined.MuiButton-outlinedWarning {
+      border-color: #ed6c02 !important;
+      color: #ed6c02 !important;
+}
+.MuiButton-outlined.MuiButton-outlinedInfo {
+      border-color: #0288d1 !important;
+      color: #0288d1 !important;
+}
+/* Text buttons - just colored text */
+.MuiButton-root.MuiButton-text,
+.MuiButton-text {
+      font-weight: 600 !important;
+}
+.MuiButton-text.MuiButton-textPrimary {
+      color: #1976d2 !important;
+}
+.MuiButton-text.MuiButton-textSecondary {
+      color: #9c27b0 !important;
+}
+/* Disabled state */
+.MuiButton-root.Mui-disabled {
+      opacity: 0.5 !important;
+}
+/* IconButton - always visible icon */
+.MuiIconButton-root svg {
+      color: inherit !important;
+}
+.MuiIconButton-root.MuiIconButton-colorPrimary {
+      color: #1976d2 !important;
+}
+.MuiIconButton-root.MuiIconButton-colorSecondary {
+      color: #9c27b0 !important;
+}
+/* Material Dashboard custom MDButton fallback */
+button[class*="MDButton"]:not([class*="text"]) {
+      font-weight: 600 !important;
+}
+button[class*="MDButton"][class*="contained"] {
+      color: #fff !important;
+}
+/* Empty/invisible button fallback - force at least an outline */
+button.MuiButton-root:not([disabled]) {
+      min-height: 32px;
+      min-width: 50px;
+}
+button.MuiButton-root[class*="outlined"]:not([style*="border"]) {
+      border: 1.5px solid rgba(0,0,0,0.23) !important;
+}
+/* Filter/select buttons that appear blank */
+.MuiFormControl-root .MuiOutlinedInput-root {
+      background-color: #fff !important;
+}
+.MuiFormControl-root .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+      border-color: rgba(0,0,0,0.23) !important;
+}
+.MuiFormControl-root .MuiInputBase-input {
+      color: #344767 !important;
+}
+.MuiSelect-select {
+      color: #344767 !important;
+}
+/* Chip buttons */
+.MuiChip-root.MuiChip-filled {
+      font-weight: 500 !important;
+}
+.MuiChip-root.MuiChip-outlined {
+      background-color: #fff !important;
+}
