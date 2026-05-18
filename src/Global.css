@@ -76,3 +76,40 @@ button.MuiButton-root:not([disabled]) {
 .MuiTab-root.Mui-selected {
       font-weight: 600 !important;
 }
+
+
+/* === Equal-height inputs (size="small") ===========================
+   Forces TextField, Select, and Autocomplete inputs to share the same
+   40px height so forms with mixed control types stop looking ragged. */
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall {
+      min-height: 40px !important;
+      box-sizing: border-box !important;
+}
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall input {
+      padding-top: 8.5px !important;
+      padding-bottom: 8.5px !important;
+      box-sizing: border-box !important;
+}
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall .MuiSelect-select {
+      padding-top: 8.5px !important;
+      padding-bottom: 8.5px !important;
+      min-height: 1.4375em !important;
+      box-sizing: border-box !important;
+}
+/* Autocomplete wraps its input in extra padding — normalise it */
+.MuiAutocomplete-root .MuiOutlinedInput-root.MuiInputBase-sizeSmall {
+      padding-top: 2px !important;
+      padding-bottom: 2px !important;
+      padding-left: 9px !important;
+}
+.MuiAutocomplete-root .MuiOutlinedInput-root.MuiInputBase-sizeSmall .MuiAutocomplete-input {
+      padding-top: 5px !important;
+      padding-bottom: 5px !important;
+}
+/* Date / time / datetime-local inputs sometimes render slightly taller */
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall input[type="date"],
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall input[type="time"],
+.MuiOutlinedInput-root.MuiInputBase-sizeSmall input[type="datetime-local"] {
+      padding-top: 7.5px !important;
+      padding-bottom: 7.5px !important;
+}
