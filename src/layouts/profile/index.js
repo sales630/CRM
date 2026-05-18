@@ -1,10 +1,11 @@
 /* eslint-disable */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import Divider from "@mui/material/Divider";
 import Icon from "@mui/material/Icon";
 import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -23,7 +24,7 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import { useAuth } from "context/AuthContext";
-import { usersAPI, authAPI, tasksAPI, mailAccountsAPI } from "services/api";
+import { uploadFile, FILE_BASE_URL, usersAPI, authAPI, tasksAPI, mailAccountsAPI } from "services/api";
 import backgroundImage from "assets/images/bg-profile.jpeg";
 
 const ROLE_COLORS = {
@@ -149,11 +150,38 @@ function ChangePasswordDialog({ open, onClose }) {
 function EditProfileDialog({ open, onClose, user, onSaved }) {
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (open && user) setForm({ name: user.name || "", email: user.email || "", phone: user.phone || "", department: user.department || "" });
+    if (open && user) setForm({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      department: user.department || "",
+      avatar: user.avatar || "",
+    });
   }, [open, user]);
+
+  const handleAvatarPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Please choose an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { setError("Image must be 5 MB or smaller"); return; }
+    setUploading(true); setError("");
+    try {
+      const data = await uploadFile(file);
+      const url = data?.url || data?.data?.url;
+      if (url) setForm(f => ({ ...f, avatar: url }));
+      else throw new Error("Upload returned no URL");
+    } catch (err) { setError(err.message || "Avatar upload failed"); }
+    finally { setUploading(false); }
+  };
+
+  const avatarSrc = form.avatar
+    ? (form.avatar.startsWith("http") ? form.avatar : `${FILE_BASE_URL}${form.avatar}`)
+    : "";
 
   const handleSave = async () => {
     if (!form.name || !form.email) { setError("Name and email are required."); return; }
@@ -173,6 +201,29 @@ function EditProfileDialog({ open, onClose, user, onSaved }) {
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
           {error && <Grid item xs={12}><Alert severity="error">{error}</Alert></Grid>}
+
+          {/* Profile picture upload */}
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Avatar src={avatarSrc} sx={{ width: 72, height: 72, fontSize: 28, bgcolor: "primary.main" }}>
+                {(form.name || "?")[0]?.toUpperCase()}
+              </Avatar>
+              <Box>
+                <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarPick} />
+                <MDButton variant="outlined" color="info" size="small" onClick={() => fileInputRef.current?.click()} disabled={uploading} sx={{ mr: 1 }}>
+                  {uploading ? <CircularProgress size={14} sx={{ mr: 0.5 }} color="inherit" /> : <Icon sx={{ mr: 0.5, fontSize: 16 }}>photo_camera</Icon>}
+                  {uploading ? "Uploading…" : (form.avatar ? "Change Photo" : "Upload Photo")}
+                </MDButton>
+                {form.avatar && (
+                  <MDButton variant="text" color="error" size="small" onClick={() => setForm(f => ({ ...f, avatar: "" }))}>
+                    Remove
+                  </MDButton>
+                )}
+                <div style={{ fontSize: 11, color: "#90a4ae", marginTop: 4 }}>JPG, PNG or GIF — max 5 MB</div>
+              </Box>
+            </Box>
+          </Grid>
+
           <Grid item xs={12} sm={6}>
             <TextField fullWidth label="Full Name" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} size="small" />
           </Grid>
@@ -189,7 +240,7 @@ function EditProfileDialog({ open, onClose, user, onSaved }) {
       </DialogContent>
       <DialogActions>
         <MDButton variant="text" color="secondary" onClick={onClose}>Cancel</MDButton>
-        <MDButton variant="gradient" color="info" onClick={handleSave} disabled={loading}>
+        <MDButton variant="gradient" color="info" onClick={handleSave} disabled={loading || uploading}>
           {loading ? <CircularProgress size={18} color="inherit" /> : "Save Changes"}
         </MDButton>
       </DialogActions>
@@ -309,6 +360,7 @@ export default function Profile() {
         {/* Avatar row */}
         <MDBox display="flex" alignItems="flex-end" gap={2} mb={3} mt={-8}>
           <Avatar
+            src={currentUser.avatar ? (currentUser.avatar.startsWith("http") ? currentUser.avatar : `${FILE_BASE_URL}${currentUser.avatar}`) : undefined}
             sx={{
               width: 80, height: 80, fontSize: 32, fontWeight: "bold", border: "3px solid white",
               boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
