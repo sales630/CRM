@@ -32,7 +32,7 @@ router.get("/", authMiddleware, (req, res) => {
     const modules  = [...new Set(allLogs.map(l => l.module).filter(Boolean))].sort();
     const actions  = [...new Set(allLogs.map(l => l.action).filter(Boolean))].sort();
 
-    res.json({ success: true, data: logs, total: logs.length, users, roles, modules, actions });
+    res.json({ success: true, data: { records: logs, users, roles, modules, actions, total: logs.length } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
