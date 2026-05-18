@@ -1517,3 +1517,80 @@ function EditSessionDialog({ session, saving, onClose, onSave }) {
     </Dialog>
   );
 }
+
+// Tiny live duration counter for active sessions
+function LiveDuration({ start }) {
+  const [mins, setMins] = useState(0);
+  useEffect(() => {
+    const tick = () => setMins(Math.floor((Date.now() - new Date(start)) / 60000));
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => clearInterval(t);
+  }, [start]);
+  const h = Math.floor(mins / 60); const m = mins % 60;
+  return <span style={{ color: "#388e3c" }}>{h}h {String(m).padStart(2,"0")}m ●</span>;
+}
+
+export default function TimeManagement() {
+  const { currentUser } = useAuth();
+  const [tab, setTab] = useState(0);
+  const [refresh, setRefresh] = useState(0);
+  const isAdmin = ["admin", "super_admin"].includes(currentUser?.role);
+
+  const TABS = [
+    { label: "Clock In/Out", icon: <AccessTime /> },
+    { label: "Time Report", icon: <BarChart /> },
+    { label: "Worktime", icon: <WorkOutline /> },
+    { label: "Work Reports", icon: <Assessment /> },
+    { label: "Work Schedules", icon: <Schedule /> },
+    { label: "Absence Chart", icon: <CalendarMonth /> },
+  ];
+
+  return (
+    <DashboardLayout>
+      <DashboardNavbar />
+      <Box sx={{ mt: 2, mb: 4 }}>
+        <Box sx={{ display:"flex", alignItems:"center", gap: 1.5, mb: 3 }}>
+          <AccessTime sx={{ fontSize: 32, color:"#1976d2" }} />
+          <Box>
+            <Typography variant="h5" fontWeight="bold">Time Management</Typography>
+            <Typography variant="body2" color="text.secondary">Track working hours, reports, schedules and absences</Typography>
+          </Box>
+        </Box>
+
+        {/* Tabs */}
+        <Box sx={{ borderBottom:"1px solid #e0e0e0", mb: 3 }}>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
+            {TABS.map((t, i) => (
+              <Tab key={i} icon={t.icon} label={t.label} iconPosition="start"
+                sx={{ minHeight: 48, fontSize:"0.82rem", textTransform:"none" }} />
+            ))}
+          </Tabs>
+        </Box>
+
+        {/* Tab Panels */}
+        {tab === 0 && (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={5}>
+              <ClockWidget onStatusChange={() => setRefresh(r => r+1)} />
+            </Grid>
+            <Grid item xs={12} md={7}>
+              <Card sx={{ borderRadius: 2, p: 2 }}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
+                  <Timer sx={{ verticalAlign:"middle", mr: 0.5 }} />
+                  Today's Activity
+                </Typography>
+                <WorktimeGrid key={refresh} />
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+        {tab === 1 && <TimeReport />}
+        {tab === 2 && <Card sx={{ borderRadius: 2, p: 3 }}><WorktimeGrid /></Card>}
+        {tab === 3 && <Card sx={{ borderRadius: 2, p: 3 }}><WorkReports /></Card>}
+        {tab === 4 && <Card sx={{ borderRadius: 2, p: 3 }}><WorkSchedules /></Card>}
+        {tab === 5 && <Card sx={{ borderRadius: 2, p: 3 }}><AbsenceChart /></Card>}
+      </Box>
+    </DashboardLayout>
+  );
+}
