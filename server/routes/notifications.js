@@ -7,6 +7,58 @@ const { authMiddleware } = require("./auth");
 const SIGNAL_TYPES = new Set(["heartbeat", "call_signal"]);
 const ADMIN_ROLES = new Set(["admin", "super_admin"]);
 
+// ── Role-based access scope ────────────────────────────────────────────────
+// Mirrors the rule used by Time Management so notifications follow the same
+// org boundary:
+//   admin / super_admin → see every notification
+//   team_leader         → see notifications about own dept members + own + broadcasts
+//   employee / other    → see only notifications addressed to them + broadcasts
+function getAccessScope(user) {
+  if (!user) return { scope: "none", allowedUserIds: new Set(), allowedNames: new Set() };
+  const role = user.role;
+  if (ADMIN_ROLES.has(role)) {
+    return { scope: "all", allowedUserIds: null, allowedNames: null };
+  }
+  if (role === "team_leader") {
+    const users = db.getCollection("users");
+    const dept = (user.department || "").trim().toLowerCase();
+    const ids = new Set(
+      users
+        .filter((u) => (u.department || "").trim().toLowerCase() === dept)
+        .map((u) => String(u.id))
+    );
+    const names = new Set(
+      users
+        .filter((u) => (u.department || "").trim().toLowerCase() === dept)
+        .map((u) => u.name)
+    );
+    ids.add(String(user.id));
+    names.add(user.name);
+    return { scope: "department", allowedUserIds: ids, allowedNames: names };
+  }
+  return {
+    scope: "self",
+    allowedUserIds: new Set([String(user.id)]),
+    allowedNames: new Set([user.name]),
+  };
+}
+
+function notifInScope(n, scope) {
+  if (scope.scope === "all") return true;
+  // Broadcast notifications are visible to everyone
+  if (n.user === "all" || n.target === "all") return true;
+  // Subject-based fields populated by our event emitters
+  if (n.subject_user_id && scope.allowedUserIds.has(String(n.subject_user_id))) return true;
+  if (n.subject_user_name && scope.allowedNames.has(n.subject_user_name)) return true;
+  // Direct addressing fields used by existing notification inserts
+  const directAddrs = [n.user, n.target, n.assigned_to].filter(Boolean);
+  for (const a of directAddrs) {
+    if (scope.allowedUserIds.has(String(a))) return true;
+    if (scope.allowedNames.has(a)) return true;
+  }
+  return false;
+}
+
 // ── Decode raw JSON messages into human-readable strings ───────────────────
 function decodeMessage(raw, type) {
   if (!raw || typeof raw !== "string") return raw || "";
@@ -66,13 +118,13 @@ function resolveType(notif) {
   return "system";
 }
 
-// ── GET /  — returns notifications for the authenticated user (admins see all) ──
+// ── GET /  — returns notifications visible to the caller's scope ──────────
 router.get("/", authMiddleware, (req, res) => {
   try {
     const { read, type, limit = 100, all: showAll } = req.query;
-    const callerName = req.user?.name || "";
     const callerRole = req.user?.role || "";
     const isAdmin = ADMIN_ROLES.has(callerRole);
+    const scope = getAccessScope(req.user);
 
     let notifs = db.getCollection("notifications");
 
@@ -89,6 +141,7 @@ router.get("/", authMiddleware, (req, res) => {
     // ── Call signal requests: return signals addressed to this user ──────────
     if (type === "call_signal") {
       const callerId = String(req.user?.id || "");
+      const callerName = req.user?.name || "";
       notifs = notifs.filter((n) =>
         n.type === "call_signal" &&
         (n.user === callerId || n.user === callerName || n.target === callerId || n.target === callerName)
@@ -103,18 +156,9 @@ router.get("/", authMiddleware, (req, res) => {
     // ── Standard notifications: exclude WebRTC/heartbeat noise ───────────────
     notifs = notifs.filter((n) => !SIGNAL_TYPES.has(n.type));
 
-    // ── Per-user scope (admins can pass ?all=1 to bypass or access logs page) ─
+    // ── Role-based scope filter — admins with ?all=1 still bypass ────────────
     if (!isAdmin || !showAll) {
-      const callerId = String(req.user?.id || "");
-      notifs = notifs.filter(
-        (n) =>
-          n.user === "all" ||
-          n.user === callerName ||
-          n.user === callerId ||
-          n.target === callerName ||
-          n.target === callerId ||
-          n.assigned_to === callerName
-      );
+      notifs = notifs.filter((n) => notifInScope(n, scope));
     }
 
     if (read !== undefined) notifs = notifs.filter((n) => n.read === (read === "true"));
@@ -130,25 +174,37 @@ router.get("/", authMiddleware, (req, res) => {
         user: n.user || n.target || "all",
       }));
 
-    res.json({ success: true, data: notifs, unread: notifs.filter((n) => !n.read).length });
+    res.json({
+      success: true,
+      data: notifs,
+      unread: notifs.filter((n) => !n.read).length,
+      scope: scope.scope,
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ── GET /logs — admin-only: all notifications for all users ──────────────────
+// ── GET /logs — admin/TL audit view of all in-scope notifications ──────────
 router.get("/logs", authMiddleware, (req, res) => {
   try {
-    if (!ADMIN_ROLES.has(req.user?.role) && req.user?.role !== "team_leader") {
-      return res.status(403).json({ success: false, error: "Admins only" });
+    const callerRole = req.user?.role || "";
+    if (!ADMIN_ROLES.has(callerRole) && callerRole !== "team_leader") {
+      return res.status(403).json({ success: false, error: "Admins / team leaders only" });
     }
+    const scope = getAccessScope(req.user);
     const { user, type, read, limit = 200, from, to } = req.query;
     let notifs = db.getCollection("notifications");
 
     // Still exclude raw signal noise
     notifs = notifs.filter((n) => !SIGNAL_TYPES.has(n.type));
 
-    if (user) notifs = notifs.filter((n) => n.user === user || n.target === user);
+    // Apply scope (admins see everything, TL sees own dept)
+    if (scope.scope !== "all") {
+      notifs = notifs.filter((n) => notifInScope(n, scope));
+    }
+
+    if (user) notifs = notifs.filter((n) => n.user === user || n.target === user || n.subject_user_name === user);
     if (type) notifs = notifs.filter((n) => n.type === type);
     if (read !== undefined) notifs = notifs.filter((n) => n.read === (read === "true"));
     if (from) notifs = notifs.filter((n) => new Date(n.created_at) >= new Date(from));
@@ -164,11 +220,15 @@ router.get("/logs", authMiddleware, (req, res) => {
         user: n.user || n.target || "all",
       }));
 
-    // Collect distinct users for filter dropdown
-    const allNotifs = db.getCollection("notifications").filter((n) => !SIGNAL_TYPES.has(n.type));
-    const users = [...new Set(allNotifs.map((n) => n.user || n.target || "all").filter(Boolean))].sort();
+    // Collect distinct users for filter dropdown (within scope)
+    const allInScope = db.getCollection("notifications")
+      .filter((n) => !SIGNAL_TYPES.has(n.type))
+      .filter((n) => scope.scope === "all" || notifInScope(n, scope));
+    const users = [...new Set(
+      allInScope.map((n) => n.subject_user_name || n.user || n.target || "all").filter(Boolean)
+    )].sort();
 
-    res.json({ success: true, data: notifs, users, total: notifs.length });
+    res.json({ success: true, data: notifs, users, total: notifs.length, scope: scope.scope });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -178,7 +238,6 @@ router.get("/logs", authMiddleware, (req, res) => {
 router.delete("/cleanup-signals", (req, res) => {
   try {
     const all = db.getCollection("notifications");
-    const cutoff = Date.now() - 60 * 60 * 1000; // older than 1 hour
     let removed = 0;
     all.forEach((n) => {
       if (SIGNAL_TYPES.has(n.type) || (n.entity_type === "presence")) {
@@ -203,17 +262,11 @@ router.patch("/:id/read", authMiddleware, (req, res) => {
 
 router.patch("/read-all", authMiddleware, (req, res) => {
   try {
-    const callerName = req.user?.name || "";
+    const scope = getAccessScope(req.user);
     const isAdmin = ADMIN_ROLES.has(req.user?.role);
     const all = db.getCollection("notifications");
     all.forEach((n) => {
-      // Only mark as read notifications that belong to this user (or all if admin)
-      const belongs =
-        isAdmin ||
-        n.user === "all" ||
-        n.user === callerName ||
-        n.target === callerName ||
-        n.assigned_to === callerName;
+      const belongs = isAdmin || notifInScope(n, scope);
       if (belongs) db.update("notifications", n.id, { read: true });
     });
     res.json({ success: true });
@@ -224,10 +277,13 @@ router.patch("/read-all", authMiddleware, (req, res) => {
 
 router.post("/", (req, res) => {
   try {
-    const { type, message, title, entity_type, entity_id, user = "all", target, read } = req.body;
+    const {
+      type, message, title, entity_type, entity_id,
+      user = "all", target, read,
+      subject_user_id, subject_user_name, subject_department,
+    } = req.body;
 
     // ── Heartbeat upsert — update existing record instead of inserting a new one
-    // This prevents the DB from flooding with thousands of heartbeat entries.
     if (type === "heartbeat") {
       let parsed = {};
       try { parsed = JSON.parse(message || "{}"); } catch {}
@@ -252,6 +308,9 @@ router.post("/", (req, res) => {
       user:        user,
       target:      target || user,
       read:        read === true ? true : false,
+      subject_user_id:    subject_user_id    || "",
+      subject_user_name:  subject_user_name  || "",
+      subject_department: subject_department || "",
     });
     res.status(201).json({ success: true, data: notif });
   } catch (err) {
