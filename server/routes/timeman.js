@@ -19,7 +19,33 @@ function formatDuration(minutes) {
   return `${h}h ${m}m`;
 }
 
-// ── Active-session helpers ──────────────────────────────────────────────────
+// ── Notification helper ──────────────────────────────────────────────────
+// Inserts a notification record with subject fields so role-based scope in
+// /routes/notifications.js can deliver it to admin (all), team_leader (own
+// department) and employee (self).
+function notify({ type, message, subject_user_id, subject_user_name, subject_department, entity_id }) {
+  try {
+    db.insert("notifications", {
+      type:               type || "system",
+      message:            message || "",
+      entity_type:        "time",
+      entity_id:          entity_id || "",
+      user:               subject_user_name || "all",
+      target:             subject_user_name || "all",
+      subject_user_id:    subject_user_id || "",
+      subject_user_name:  subject_user_name || "",
+      subject_department: subject_department || "",
+      read:               false,
+    });
+  } catch (_) { /* never let notification failures break the main flow */ }
+}
+function timeLabel(iso) {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); }
+  catch { return iso; }
+}
+
+// ── Active-session helpers ─────────────────────────────────────────────────
 // Treat any session that has been "active" longer than this as a forgotten
 // clock-out: the report will cap its duration at this many hours so a
 // session left open from days ago doesn't show 400+ hours.
@@ -134,6 +160,15 @@ router.post("/clockin", authMiddleware, (req, res) => {
       notes: "",
     });
 
+    notify({
+      type: "clock_in",
+      message: `🟢 ${record.user_name} clocked in at ${timeLabel(record.clock_in)}`,
+      subject_user_id: user_id,
+      subject_user_name: record.user_name,
+      subject_department: record.department,
+      entity_id: record.id,
+    });
+
     res.json({ success: true, data: enrichRecord(record) });
   } catch (e) {
     res.json({ success: false, error: e.message });
@@ -165,6 +200,15 @@ router.post("/clockout", authMiddleware, (req, res) => {
       duration_minutes: duration,
       status: "completed",
       notes: notes || "",
+    });
+
+    notify({
+      type: "clock_out",
+      message: `🔴 ${updated.user_name} clocked out at ${timeLabel(updated.clock_out)} (worked ${formatDuration(duration)})`,
+      subject_user_id: user_id,
+      subject_user_name: updated.user_name,
+      subject_department: updated.department,
+      entity_id: updated.id,
     });
 
     res.json({ success: true, data: enrichRecord(updated) });
@@ -417,6 +461,20 @@ router.put("/records/:id", authMiddleware, (req, res) => {
       updates.duration_minutes = calcDuration(clock_in, existing.clock_out);
     }
     const updated = db.update("timeman_records", req.params.id, updates);
+
+    // Notify when someone OTHER than the record owner edits it
+    if (existing.user_id !== req.user.id) {
+      const target = db.getById("users", existing.user_id);
+      notify({
+        type: "time_edit",
+        message: `✏️ ${req.user.name} edited ${existing.user_name}'s time entry for ${existing.date}`,
+        subject_user_id: existing.user_id,
+        subject_user_name: existing.user_name,
+        subject_department: target?.department || existing.department || "",
+        entity_id: existing.id,
+      });
+    }
+
     res.json({ success: true, data: enrichRecord(updated) });
   } catch (e) {
     res.json({ success: false, error: e.message });
@@ -505,6 +563,14 @@ router.post("/reports", authMiddleware, (req, res) => {
         status: supervisor_id ? "sent" : "draft",
         reviewed_at: null,
         comment: "",
+      });
+      notify({
+        type: "work_report",
+        message: `📝 ${req.user.name} submitted a work report for ${reportDate}`,
+        subject_user_id: user_id,
+        subject_user_name: req.user.name,
+        subject_department: req.user.department || "",
+        entity_id: report.id,
       });
     }
     res.json({ success: true, data: report });
