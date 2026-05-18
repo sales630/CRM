@@ -45,11 +45,39 @@ function getAccessScope(user) {
 
 function notifInScope(n, scope) {
   if (scope.scope === "all") return true;
-  // Broadcast notifications are visible to everyone
+
+  // Look up the subject's role so we can apply the org hierarchy:
+  //   admin / super_admin events  → visible ONLY to admins
+  //   team_leader events          → visible to admins + same dept members (and self)
+  //   employee events             → visible to admins + that dept's TLs + self
+  let subjectRole = "";
+  if (n.subject_user_id) {
+    const u = db.getById("users", n.subject_user_id);
+    if (u) subjectRole = u.role || "";
+  }
+  if (!subjectRole && n.subject_user_name) {
+    const u = db.getCollection("users").find((u) => u.name === n.subject_user_name);
+    if (u) subjectRole = u.role || "";
+  }
+
+  const subjectIsSelf =
+    (n.subject_user_id && scope.allowedUserIds.has(String(n.subject_user_id))) ||
+    (n.subject_user_name && scope.allowedNames.has(n.subject_user_name));
+
+  // ── Hierarchy filter ──────────────────────────────────────────────────────
+  // Team leader cannot see admin/super_admin events (unless about themselves)
+  if (scope.scope === "department") {
+    if (ADMIN_ROLES.has(subjectRole) && !subjectIsSelf) return false;
+  }
+  // Employee cannot see admin / TL events (only own)
+  if (scope.scope === "self") {
+    if ((ADMIN_ROLES.has(subjectRole) || subjectRole === "team_leader") && !subjectIsSelf) return false;
+  }
+
+  // Broadcast notifications are visible to everyone in scope
   if (n.user === "all" || n.target === "all") return true;
   // Subject-based fields populated by our event emitters
-  if (n.subject_user_id && scope.allowedUserIds.has(String(n.subject_user_id))) return true;
-  if (n.subject_user_name && scope.allowedNames.has(n.subject_user_name)) return true;
+  if (subjectIsSelf) return true;
   // Direct addressing fields used by existing notification inserts
   const directAddrs = [n.user, n.target, n.assigned_to].filter(Boolean);
   for (const a of directAddrs) {
