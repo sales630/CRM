@@ -38,6 +38,27 @@ function notify({ type, message, subject_user_id, subject_user_name, subject_dep
       read:               false,
     });
   } catch (_) { /* never let notification failures break the main flow */ }
+
+  // Mirror every event to activity_logs so the admin "Activity Logs" page
+  // (/admin/logs) shows clock-in/out, time edits and report submissions.
+  try {
+    let subjectRole = "";
+    if (subject_user_id) {
+      const u = db.getById("users", subject_user_id);
+      if (u) subjectRole = u.role || "";
+    }
+    db.insert("activity_logs", {
+      user_id:      subject_user_id || "",
+      user_name:    subject_user_name || "System",
+      user_role:    subjectRole,
+      action:       type || "system",
+      module:       "time",
+      entity_id:    entity_id || "",
+      entity_title: "",
+      detail:       message || "",
+      ip:           "",
+    });
+  } catch (_) { /* logging must never break the request */ }
 }
 function timeLabel(iso) {
   if (!iso) return "";
