@@ -61,7 +61,7 @@ export function uploadFile(file) {
   });
 }
 
-export const FILE_BASE_URL = "http://localhost:5000";
+export const FILE_BASE_URL = BASE_URL.replace(/\/api$/, "");
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 export const authAPI = {
