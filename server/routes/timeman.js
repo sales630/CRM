@@ -19,6 +19,93 @@ function formatDuration(minutes) {
   return `${h}h ${m}m`;
 }
 
+// ── Active-session helpers ──────────────────────────────────────────────────
+// Treat any session that has been "active" longer than this as a forgotten
+// clock-out: the report will cap its duration at this many hours so a
+// session left open from days ago doesn't show 400+ hours.
+const MAX_ACTIVE_SESSION_HOURS = 16;
+
+// Return the effective duration in minutes for a record.
+//   - completed session → stored duration_minutes
+//   - active session    → (now - clock_in), capped at MAX_ACTIVE_SESSION_HOURS
+function getEffectiveMinutes(record) {
+  if (!record) return 0;
+  if (record.clock_out) return record.duration_minutes || 0;
+  if (!record.clock_in) return 0;
+  const elapsedMs = Date.now() - new Date(record.clock_in).getTime();
+  const elapsedMin = Math.max(0, Math.round(elapsedMs / 60000));
+  return Math.min(elapsedMin, MAX_ACTIVE_SESSION_HOURS * 60);
+}
+
+// Return a shallow copy of a record with `duration_minutes` set to the
+// effective (live) value so the frontend renders running sessions correctly
+// without any additional changes.
+function enrichRecord(record) {
+  if (!record) return record;
+  const effective = getEffectiveMinutes(record);
+  return {
+    ...record,
+    duration_minutes: effective,
+    is_active: !record.clock_out,
+    // expose the raw stored value too, in case the UI wants it
+    stored_duration_minutes: record.duration_minutes || 0,
+  };
+}
+
+// ── Role-based access helpers ─────────────────────────────────────────────
+// Scope rules:
+//   admin / super_admin → all users
+//   team_leader         → users in the same department (incl. self)
+//   employee / other    → only self
+function getAccessScope(user) {
+  if (!user) return { scope: "none", allowedUserIds: new Set() };
+  const role = user.role;
+  if (role === "admin" || role === "super_admin") {
+    return { scope: "all", allowedUserIds: null }; // null = no restriction
+  }
+  if (role === "team_leader") {
+    const users = db.getCollection("users");
+    const dept = (user.department || "").trim().toLowerCase();
+    const ids = new Set(
+      users
+        .filter((u) => (u.department || "").trim().toLowerCase() === dept)
+        .map((u) => u.id)
+    );
+    ids.add(user.id); // always include self
+    return { scope: "department", allowedUserIds: ids };
+  }
+  return { scope: "self", allowedUserIds: new Set([user.id]) };
+}
+
+function canViewUser(reqUser, targetUserId) {
+  const { scope, allowedUserIds } = getAccessScope(reqUser);
+  if (scope === "all") return true;
+  return allowedUserIds.has(targetUserId);
+}
+
+function canEditRecord(reqUser, record) {
+  if (!record) return false;
+  if (reqUser.role === "admin" || reqUser.role === "super_admin") return true;
+  if (reqUser.role === "team_leader") {
+    // team_leader may edit own and same-department records
+    if (record.user_id === reqUser.id) return true;
+    const target = db.getById("users", record.user_id);
+    if (!target) return false;
+    const a = (reqUser.department || "").trim().toLowerCase();
+    const b = (target.department || "").trim().toLowerCase();
+    return a && a === b;
+  }
+  // employee: can edit own (kept permissive for self-correction; tighten if needed)
+  return record.user_id === reqUser.id;
+}
+
+// Apply the scope filter to a list of time records.
+function filterByScope(reqUser, records) {
+  const { scope, allowedUserIds } = getAccessScope(reqUser);
+  if (scope === "all") return records;
+  return records.filter((r) => allowedUserIds.has(r.user_id));
+}
+
 // ── Clock In ───────────────────────────────────────────────────────────────
 router.post("/clockin", authMiddleware, (req, res) => {
   try {
@@ -47,7 +134,7 @@ router.post("/clockin", authMiddleware, (req, res) => {
       notes: "",
     });
 
-    res.json({ success: true, data: record });
+    res.json({ success: true, data: enrichRecord(record) });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -61,9 +148,11 @@ router.post("/clockout", authMiddleware, (req, res) => {
     const today = todayStr();
 
     const records = db.getCollection("timeman_records");
-    const record = records.find(
-      (r) => r.user_id === user_id && r.date === today && !r.clock_out
-    );
+    // Allow clocking out the most-recent active session — even if it was
+    // started on a previous day (the frontend timer can run past midnight).
+    const record = records
+      .filter((r) => r.user_id === user_id && !r.clock_out)
+      .sort((a, b) => (b.clock_in || "").localeCompare(a.clock_in || ""))[0];
 
     if (!record) {
       return res.json({ success: false, error: "No active clock-in found" });
@@ -78,7 +167,7 @@ router.post("/clockout", authMiddleware, (req, res) => {
       notes: notes || "",
     });
 
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: enrichRecord(updated) });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -89,9 +178,10 @@ router.get("/mystatus", authMiddleware, (req, res) => {
   try {
     const user_id = req.user.id;
     const today = todayStr();
-    const todayRecords = db.getCollection("timeman_records").filter(
-      (r) => r.user_id === user_id && r.date === today
-    );
+    const todayRecords = db
+      .getCollection("timeman_records")
+      .filter((r) => r.user_id === user_id && r.date === today)
+      .map(enrichRecord);
     // Always prefer the active (not clocked-out) record — handles multiple sessions per day
     const activeRecord = todayRecords.find((r) => !r.clock_out);
     const record = activeRecord || todayRecords[todayRecords.length - 1] || null;
@@ -124,6 +214,7 @@ router.get("/online", authMiddleware, (req, res) => {
         user_id: String(r.user_id),
         user_name: r.user_name,
         clock_in: r.clock_in,
+        elapsed_minutes: getEffectiveMinutes(r),
       })),
     });
   } catch (e) {
@@ -138,7 +229,8 @@ router.get("/stats", authMiddleware, (req, res) => {
     const records = db.getCollection("timeman_records").filter((r) => r.date === today);
     const clockedIn = records.filter((r) => !r.clock_out).length;
     const clockedOut = records.filter((r) => !!r.clock_out).length;
-    const totalMinutes = records.reduce((sum, r) => sum + (r.duration_minutes || 0), 0);
+    // Use effective minutes so active sessions count toward today's total
+    const totalMinutes = records.reduce((sum, r) => sum + getEffectiveMinutes(r), 0);
     const users = db.getCollection("users");
     res.json({
       success: true,
@@ -147,7 +239,7 @@ router.get("/stats", authMiddleware, (req, res) => {
         clocked_out: clockedOut,
         total_employees: users.length,
         total_hours_today: formatDuration(totalMinutes),
-        records,
+        records: records.map(enrichRecord),
       },
     });
   } catch (e) {
@@ -159,24 +251,33 @@ router.get("/stats", authMiddleware, (req, res) => {
 router.get("/time-report", authMiddleware, (req, res) => {
   try {
     const { start, end, user_id } = req.query;
-    const isAdmin = ["admin", "super_admin"].includes(req.user.role);
-    // Regular users can only see their own records
-    const targetUserId = isAdmin ? (user_id || null) : req.user.id;
 
-    let records = db.getCollection("timeman_records");
+    // Role-based filtering: admin → all, team_leader → department, employee → self
+    let records = filterByScope(req.user, db.getCollection("timeman_records"));
+
     if (start) records = records.filter((r) => r.date >= start);
     if (end)   records = records.filter((r) => r.date <= end);
-    if (targetUserId) records = records.filter((r) => r.user_id === targetUserId);
+    if (user_id) {
+      // Honour requested user filter only if the caller is allowed to view them
+      if (!canViewUser(req.user, user_id)) {
+        return res.status(403).json({ success: false, error: "Not allowed to view this user's records" });
+      }
+      records = records.filter((r) => r.user_id === user_id);
+    }
+
+    // Enrich with effective minutes so active sessions contribute
+    records = records.map(enrichRecord);
 
     // Sort newest first
-    records = records.sort((a, b) => b.date.localeCompare(a.date) || b.clock_in.localeCompare(a.clock_in));
+    records = records.sort((a, b) => b.date.localeCompare(a.date) || (b.clock_in || "").localeCompare(a.clock_in || ""));
 
-    // Build daily summary map
+    // Build daily summary map (uses effective minutes via duration_minutes after enrich)
     const dayMap = {};
     for (const r of records) {
-      if (!dayMap[r.date]) dayMap[r.date] = { date: r.date, sessions: [], total_minutes: 0 };
+      if (!dayMap[r.date]) dayMap[r.date] = { date: r.date, sessions: [], total_minutes: 0, has_active: false };
       dayMap[r.date].sessions.push(r);
       dayMap[r.date].total_minutes += r.duration_minutes || 0;
+      if (r.is_active) dayMap[r.date].has_active = true;
     }
 
     // Per-user summary (for admin "all users" view)
@@ -185,12 +286,24 @@ router.get("/time-report", authMiddleware, (req, res) => {
     for (const r of records) {
       if (!userMap[r.user_id]) {
         const u = users.find((u) => u.id === r.user_id);
-        userMap[r.user_id] = { user_id: r.user_id, user_name: r.user_name, department: r.department, role: u?.role || "", total_minutes: 0, days_worked: 0, days_seen: new Set() };
+        userMap[r.user_id] = {
+          user_id: r.user_id,
+          user_name: r.user_name,
+          department: r.department,
+          role: u?.role || "",
+          total_minutes: 0,
+          days_worked: 0,
+          days_seen: new Set(),
+        };
       }
       userMap[r.user_id].total_minutes += r.duration_minutes || 0;
       userMap[r.user_id].days_seen.add(r.date);
     }
-    const userSummaries = Object.values(userMap).map((u) => ({ ...u, days_worked: u.days_seen.size, days_seen: undefined }));
+    const userSummaries = Object.values(userMap).map((u) => ({
+      ...u,
+      days_worked: u.days_seen.size,
+      days_seen: undefined,
+    }));
 
     // Total summary
     const totalMinutes = records.reduce((s, r) => s + (r.duration_minutes || 0), 0);
@@ -209,6 +322,7 @@ router.get("/time-report", authMiddleware, (req, res) => {
           unique_users: uniqueUsers,
           avg_minutes_per_day: uniqueDays ? Math.round(totalMinutes / uniqueDays) : 0,
         },
+        scope: getAccessScope(req.user).scope,
       },
     });
   } catch (e) {
@@ -220,14 +334,30 @@ router.get("/time-report", authMiddleware, (req, res) => {
 router.get("/worktime", authMiddleware, (req, res) => {
   try {
     const { start, end, user_id } = req.query;
-    let records = db.getCollection("timeman_records");
+
+    // Role-based filtering on records and on users shown in the grid
+    let records = filterByScope(req.user, db.getCollection("timeman_records"));
 
     if (start) records = records.filter((r) => r.date >= start);
     if (end) records = records.filter((r) => r.date <= end);
-    if (user_id) records = records.filter((r) => r.user_id === user_id);
+    if (user_id) {
+      if (!canViewUser(req.user, user_id)) {
+        return res.status(403).json({ success: false, error: "Not allowed to view this user's records" });
+      }
+      records = records.filter((r) => r.user_id === user_id);
+    }
 
-    // Get users grouped by department
-    const users = db.getCollection("users");
+    // Enrich records so active sessions show live elapsed time
+    records = records.map(enrichRecord);
+
+    // Determine which users appear in the grid based on access scope
+    const { scope, allowedUserIds } = getAccessScope(req.user);
+    let users = db.getCollection("users");
+    if (scope !== "all") {
+      users = users.filter((u) => allowedUserIds.has(u.id));
+    }
+
+    // Group by department
     const departments = {};
     users.forEach((u) => {
       const dept = u.department || "General";
@@ -240,7 +370,7 @@ router.get("/worktime", authMiddleware, (req, res) => {
       });
     });
 
-    res.json({ success: true, data: { records, departments } });
+    res.json({ success: true, data: { records, departments, scope } });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
@@ -249,29 +379,79 @@ router.get("/worktime", authMiddleware, (req, res) => {
 // ── Individual Worktime History ────────────────────────────────────────────
 router.get("/worktime/:userId", authMiddleware, (req, res) => {
   try {
+    if (!canViewUser(req.user, req.params.userId)) {
+      return res.status(403).json({ success: false, error: "Not allowed to view this user's records" });
+    }
     const records = db
       .getCollection("timeman_records")
       .filter((r) => r.user_id === req.params.userId)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map(enrichRecord);
     res.json({ success: true, data: records });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
 });
 
-// ── Update Timeman Record ─────────────────────────────────────────────────
+// ── Update Timeman Record (admin & team_leader for own team) ──────────────
 router.put("/records/:id", authMiddleware, (req, res) => {
   try {
+    const existing = db.getById("timeman_records", req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: "Record not found" });
+    }
+    if (!canEditRecord(req.user, existing)) {
+      return res.status(403).json({ success: false, error: "Not allowed to edit this record" });
+    }
+
     const { clock_in, clock_out, notes } = req.body;
-    const updates = { notes };
+    const updates = {};
+    if (typeof notes === "string") updates.notes = notes;
     if (clock_in) updates.clock_in = clock_in;
     if (clock_out) {
       updates.clock_out = clock_out;
-      updates.duration_minutes = calcDuration(clock_in || db.getById("timeman_records", req.params.id)?.clock_in, clock_out);
+      updates.duration_minutes = calcDuration(clock_in || existing.clock_in, clock_out);
       updates.status = "completed";
+    } else if (clock_in && existing.clock_out) {
+      // Recompute duration if clock_in was edited on an already-completed session
+      updates.duration_minutes = calcDuration(clock_in, existing.clock_out);
     }
     const updated = db.update("timeman_records", req.params.id, updates);
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: enrichRecord(updated) });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Auto Clock-Out stale active sessions (admin only) ─────────────────────
+// Useful one-shot endpoint to clean up sessions left open from previous days.
+// Closes any active session whose clock_in date is BEFORE today, capping the
+// duration at MAX_ACTIVE_SESSION_HOURS.
+router.post("/cleanup-stale", authMiddleware, (req, res) => {
+  try {
+    if (!["admin", "super_admin"].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: "Admin only" });
+    }
+    const today = todayStr();
+    const stale = db.getCollection("timeman_records").filter(
+      (r) => !r.clock_out && r.date && r.date < today
+    );
+    const closed = [];
+    for (const r of stale) {
+      const cappedMs = Math.min(
+        Date.now() - new Date(r.clock_in).getTime(),
+        MAX_ACTIVE_SESSION_HOURS * 3600 * 1000
+      );
+      const clockOut = new Date(new Date(r.clock_in).getTime() + cappedMs).toISOString();
+      const updated = db.update("timeman_records", r.id, {
+        clock_out: clockOut,
+        duration_minutes: calcDuration(r.clock_in, clockOut),
+        status: "completed",
+        notes: (r.notes ? r.notes + " | " : "") + "[auto-closed: stale session]",
+      });
+      closed.push(updated);
+    }
+    res.json({ success: true, data: { closed_count: closed.length, closed } });
   } catch (e) {
     res.json({ success: false, error: e.message });
   }
