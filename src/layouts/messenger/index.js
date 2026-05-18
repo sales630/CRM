@@ -698,11 +698,11 @@ export default function Messenger() {
                           {/* Legacy single-file support */}
                           {!msg.attachments?.length && msg.file_name && (
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5, opacity: 0.85 }}>
-                              <AttachFile sx={{ fontSize: 14 }} />
-                              <Typography variant="caption">{msg.file_name}</Typography>
+                              <AttachFile sx={{ fontSize: 14, color: isSelf ? "#fff" : "inherit" }} />
+                              <Typography variant="caption" sx={{ color: isSelf ? "#fff" : "inherit" }}>{msg.file_name}</Typography>
                             </Box>
                           )}
-                          {msg.text && <Typography variant="body2">{msg.text}</Typography>}
+                          {msg.text && <Typography variant="body2" sx={{ color: isSelf ? "#fff" : "inherit", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{msg.text}</Typography>}
                           {msg.edited && <Typography variant="caption" sx={{ opacity: 0.7, fontSize: "0.6rem" }}>(edited)</Typography>}
                         </Box>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, justifyContent: isSelf ? "flex-end" : "flex-start", mt: 0.25 }}>
