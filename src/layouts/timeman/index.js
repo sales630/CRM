@@ -211,7 +211,7 @@ function ClockWidget({ onStatusChange }) {
   );
 }
 
-// ── Worktime Grid ─────────────────────────────────────────────────────────
+// ── Worktime Grid ──────────────────────────────────────────────────────────
 function WorktimeGrid() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -351,7 +351,7 @@ function WorktimeGrid() {
   );
 }
 
-// ── Work Reports ───────────────────────────────────────────────────────────
+// ── Work Reports ──────────────────────────────────────────────────────────
 function WorkReports() {
   const { currentUser } = useAuth();
   const [reports, setReports] = useState([]);
@@ -522,7 +522,7 @@ function WorkReports() {
   );
 }
 
-// ── Work Schedules ─────────────────────────────────────────────────────────
+// ── Work Schedules ──────────────────────────────────────────────────────────
 function WorkSchedules() {
   const [schedules, setSchedules] = useState([]);
   const [users, setUsers] = useState([]);
@@ -946,6 +946,14 @@ function AbsenceChart() {
 function TimeReport() {
   const { currentUser } = useAuth();
   const isAdmin = ["admin", "super_admin"].includes(currentUser?.role);
+  const isTeamLeader = currentUser?.role === "team_leader";
+  // Admin & Team Leader may edit (backend enforces scope: TL only for own department)
+  const canEdit = isAdmin || isTeamLeader;
+
+  // Edit dialog state
+  const [editing, setEditing]   = useState(null); // session being edited, or null
+  const [saving, setSaving]     = useState(false);
+  const [toast, setToast]       = useState(null); // { type, msg }
 
   // Date range defaults
   const getDefaults = () => {
@@ -1316,7 +1324,20 @@ function TimeReport() {
                         {/* Notes */}
                         {s.notes && (
                           <Tooltip title={s.notes}>
-                            <Info sx={{ fontSize: 15, color: "#90a4ae", cursor: "help", ml: "auto" }} />
+                            <Info sx={{ fontSize: 15, color: "#90a4ae", cursor: "help", ml: !canEdit ? "auto" : 0 }} />
+                          </Tooltip>
+                        )}
+
+                        {/* Edit button (admin & team_leader only) */}
+                        {canEdit && (
+                          <Tooltip title="Edit session">
+                            <IconButton
+                              size="small"
+                              onClick={() => setEditing(s)}
+                              sx={{ ml: "auto", color: "#1976d2", "&:hover": { bgcolor: "#e3f2fd" } }}
+                            >
+                              <Edit sx={{ fontSize: 16 }} />
+                            </IconButton>
                           </Tooltip>
                         )}
                       </Box>
@@ -1328,83 +1349,171 @@ function TimeReport() {
           })}
         </CardContent>
       </Card>
+
+      {/* ── Edit Session Dialog ───────────────────────────────────────────── */}
+      <EditSessionDialog
+        session={editing}
+        saving={saving}
+        onClose={() => setEditing(null)}
+        onSave={async (updates) => {
+          if (!editing) return;
+          setSaving(true);
+          try {
+            const res = await timemanAPI.updateRecord(editing.id, updates);
+            if (res?.success === false) {
+              setToast({ type: "error", msg: res.error || "Update failed" });
+            } else {
+              setToast({ type: "success", msg: "Session updated" });
+              setEditing(null);
+              load();
+            }
+          } catch (e) {
+            setToast({ type: "error", msg: e.message || "Update failed" });
+          } finally {
+            setSaving(false);
+          }
+        }}
+      />
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={3500}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        {toast ? <Alert severity={toast.type} onClose={() => setToast(null)}>{toast.msg}</Alert> : undefined}
+      </Snackbar>
     </Box>
   );
 }
 
-// Tiny live duration counter for active sessions
-function LiveDuration({ start }) {
-  const [mins, setMins] = useState(0);
+// ── Edit Session Dialog ────────────────────────────────────────────────────
+// Lets admin/team_leader adjust clock_in, clock_out, and notes on a session.
+// The backend (PUT /timeman/records/:id) enforces authorization based on role
+// and department scope.
+function EditSessionDialog({ session, saving, onClose, onSave }) {
+  const [clockIn, setClockIn]   = useState("");
+  const [clockOut, setClockOut] = useState("");
+  const [notes, setNotes]       = useState("");
+
+  // Convert ISO string → "YYYY-MM-DDTHH:mm" for datetime-local input (local TZ)
+  const isoToLocalInput = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const off = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - off).toISOString().slice(0, 16);
+  };
+  // Convert "YYYY-MM-DDTHH:mm" (local) → ISO string
+  const localInputToIso = (val) => {
+    if (!val) return null;
+    return new Date(val).toISOString();
+  };
+
   useEffect(() => {
-    const tick = () => setMins(Math.floor((Date.now() - new Date(start)) / 60000));
-    tick();
-    const t = setInterval(tick, 30000);
-    return () => clearInterval(t);
-  }, [start]);
-  const h = Math.floor(mins / 60); const m = mins % 60;
-  return <span style={{ color: "#388e3c" }}>{h}h {String(m).padStart(2,"0")}m ●</span>;
-}
+    if (!session) return;
+    setClockIn(isoToLocalInput(session.clock_in));
+    setClockOut(isoToLocalInput(session.clock_out));
+    setNotes(session.notes || "");
+  }, [session]);
 
-export default function TimeManagement() {
-  const { currentUser } = useAuth();
-  const [tab, setTab] = useState(0);
-  const [refresh, setRefresh] = useState(0);
-  const isAdmin = ["admin", "super_admin"].includes(currentUser?.role);
+  if (!session) return null;
 
-  const TABS = [
-    { label: "Clock In/Out", icon: <AccessTime /> },
-    { label: "Time Report", icon: <BarChart /> },
-    { label: "Worktime", icon: <WorkOutline /> },
-    { label: "Work Reports", icon: <Assessment /> },
-    { label: "Work Schedules", icon: <Schedule /> },
-    { label: "Absence Chart", icon: <CalendarMonth /> },
-  ];
+  const computedMinutes = (() => {
+    const ci = localInputToIso(clockIn);
+    const co = localInputToIso(clockOut);
+    if (!ci || !co) return null;
+    return Math.max(0, Math.round((new Date(co) - new Date(ci)) / 60000));
+  })();
+  const computedLabel = computedMinutes == null
+    ? "—"
+    : `${Math.floor(computedMinutes / 60)}h ${String(computedMinutes % 60).padStart(2, "0")}m`;
+
+  const handleSave = () => {
+    const updates = { notes };
+    const ci = localInputToIso(clockIn);
+    const co = localInputToIso(clockOut);
+    if (ci) updates.clock_in = ci;
+    if (co) updates.clock_out = co;
+    if (ci && co && new Date(co) < new Date(ci)) {
+      alert("Clock Out must be after Clock In");
+      return;
+    }
+    onSave(updates);
+  };
 
   return (
-    <DashboardLayout>
-      <DashboardNavbar />
-      <Box sx={{ mt: 2, mb: 4 }}>
-        <Box sx={{ display:"flex", alignItems:"center", gap: 1.5, mb: 3 }}>
-          <AccessTime sx={{ fontSize: 32, color:"#1976d2" }} />
-          <Box>
-            <Typography variant="h5" fontWeight="bold">Time Management</Typography>
-            <Typography variant="body2" color="text.secondary">Track working hours, reports, schedules and absences</Typography>
-          </Box>
-        </Box>
-
-        {/* Tabs */}
-        <Box sx={{ borderBottom:"1px solid #e0e0e0", mb: 3 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
-            {TABS.map((t, i) => (
-              <Tab key={i} icon={t.icon} label={t.label} iconPosition="start"
-                sx={{ minHeight: 48, fontSize:"0.82rem", textTransform:"none" }} />
-            ))}
-          </Tabs>
-        </Box>
-
-        {/* Tab Panels */}
-        {tab === 0 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={5}>
-              <ClockWidget onStatusChange={() => setRefresh(r => r+1)} />
-            </Grid>
-            <Grid item xs={12} md={7}>
-              <Card sx={{ borderRadius: 2, p: 2 }}>
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-                  <Timer sx={{ verticalAlign:"middle", mr: 0.5 }} />
-                  Today's Activity
-                </Typography>
-                <WorktimeGrid key={refresh} />
-              </Card>
-            </Grid>
+    <Dialog open={!!session} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 700 }}>
+        <Edit sx={{ fontSize: 20, color: "#1976d2" }} />
+        Edit Time Session
+        <Chip
+          label={session.user_name}
+          size="small"
+          sx={{ ml: "auto", bgcolor: "#e3f2fd", color: "#1565c0", fontWeight: 600 }}
+        />
+      </DialogTitle>
+      <DialogContent dividers>
+        <Grid container spacing={2} sx={{ pt: 1 }}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              size="small"
+              type="datetime-local"
+              label="Clock In"
+              value={clockIn}
+              onChange={(e) => setClockIn(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
           </Grid>
-        )}
-        {tab === 1 && <TimeReport />}
-        {tab === 2 && <Card sx={{ borderRadius: 2, p: 3 }}><WorktimeGrid /></Card>}
-        {tab === 3 && <Card sx={{ borderRadius: 2, p: 3 }}><WorkReports /></Card>}
-        {tab === 4 && <Card sx={{ borderRadius: 2, p: 3 }}><WorkSchedules /></Card>}
-        {tab === 5 && <Card sx={{ borderRadius: 2, p: 3 }}><AbsenceChart /></Card>}
-      </Box>
-    </DashboardLayout>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              size="small"
+              type="datetime-local"
+              label="Clock Out"
+              value={clockOut}
+              onChange={(e) => setClockOut(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              helperText={!clockOut ? "Leave empty to keep the session active" : ""}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Box sx={{ p: 1.2, bgcolor: "#f5f7fa", borderRadius: 1, display: "flex", justifyContent: "space-between" }}>
+              <Typography sx={{ fontSize: "0.78rem", color: "#546e7a", fontWeight: 600 }}>Computed duration</Typography>
+              <Typography sx={{ fontSize: "0.85rem", color: "#1976d2", fontWeight: 800 }}>{computedLabel}</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Notes"
+              multiline
+              minRows={2}
+              maxRows={5}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Typography sx={{ fontSize: "0.7rem", color: "#90a4ae" }}>
+              Session ID: {session.id} · Date: {session.date}
+            </Typography>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving} startIcon={<Close />}>Cancel</Button>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          variant="contained"
+          startIcon={saving ? <CircularProgress size={14} sx={{ color: "#fff" }} /> : <Check />}
+          sx={{ bgcolor: "#1976d2" }}
+        >
+          {saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
