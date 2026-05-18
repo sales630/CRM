@@ -120,7 +120,7 @@ export default function AdminLogs() {
       if (fromDate)   params.from  = fromDate;
       if (toDate)     params.to    = toDate;
       const res = await activityLogsAPI.getAll(params);
-      setLogs(Array.isArray(res.data) ? res.data : []);
+      setLogs(Array.isArray(res?.records) ? res.records : (Array.isArray(res) ? res : []));
       if (res.users)   setUserList(res.users);
       if (res.roles)   setRoleList(res.roles);
       if (res.modules) setModuleList(res.modules);
@@ -138,7 +138,7 @@ export default function AdminLogs() {
       if (fromDate)   params.from = fromDate;
       if (toDate)     params.to   = toDate;
       const res = await activityLogsAPI.getAll(params);
-      const all = Array.isArray(res.data) ? res.data : [];
+      const all = Array.isArray(res?.records) ? res.records : (Array.isArray(res) ? res : []);
       setLoginLogs(all.filter(l => l.action === "login"));
       if (res.users) setUserList(res.users);
     } catch (e) { setError(e.message); }
