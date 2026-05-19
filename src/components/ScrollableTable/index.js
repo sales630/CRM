@@ -7,47 +7,44 @@
  *  • Vertical scroll with responsive max-height (default 65 vh).
  *  • Sticky TableHead — headers stay pinned while scrolling vertically.
  *  • Built-in pagination bar (opt-in via totalCount prop).
+ *  • "Download Report" button — exports the rendered table to .xlsx.
+ *    Visibility is gated by role permissions fetched from
+ *    /api/role-permissions. Set `moduleName` to control the filename.
  *  • Thin custom scrollbars on both axes.
- *
- * Usage — no pagination:
- *   <ScrollableTable>
- *     <TableHead style={{ display: "table-header-group" }}><TableHead>…</TableHead><TableBody>…</TableBody></Table>
- *   </ScrollableTable>
- *
- * Usage — with pagination (caller slices data):
- *   const [page, setPage]               = useState(0);
- *   const [rowsPerPage, setRowsPerPage] = useState(25);
- *   …
- *   <ScrollableTable
- *     totalCount={rows.length}
- *     page={page}
- *     rowsPerPage={rowsPerPage}
- *     onPageChange={setPage}
- *     onRowsPerPageChange={(rpp) => { setRowsPerPage(rpp); setPage(0); }}
- *   >
- *     <TableHead style={{ display: "table-header-group" }}>
- *       <TableBody>
- *         {rows.slice(page * rowsPerPage, (page + 1) * rowsPerPage).map(…)}
- *       </TableBody>
- *     </Table>
- *   </ScrollableTable>
- *
- * Extra props (all optional):
- *   maxHeight          — CSS value for max-height        (default "65vh")
- *   arrowSize          — button diameter in px           (default 32)
- *   scrollStep         — px per horizontal click         (default 300)
- *   totalCount         — enables pagination bar
- *   page               — 0-based page index
- *   rowsPerPage        — rows shown per page             (default 25)
- *   onPageChange       — fn(newPage)
- *   onRowsPerPageChange— fn(newRowsPerPage)
- *   rowsPerPageOptions — array of choices (default [10,25,50,100])
  */
 import { useRef, useState, useEffect, useCallback } from "react";
 import {
-  Box, IconButton, TableContainer, TablePagination,
+  Box, Button, IconButton, TableContainer, TablePagination, Tooltip,
 } from "@mui/material";
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { ChevronLeft, ChevronRight, FileDownload } from "@mui/icons-material";
+import { useAuth } from "context/AuthContext";
+import { exportTableToExcel, inferModuleNameFromPath } from "utils/excelExport";
+import { rolePermissionsAPI } from "services/api";
+
+// Module-level cache so we don't fetch the permissions matrix on every table.
+let _downloadPermCache = null;
+let _downloadPermLoaded = false;
+let _downloadPermInflight = null;
+
+function loadDownloadPerms() {
+  if (_downloadPermLoaded) return Promise.resolve(_downloadPermCache);
+  if (_downloadPermInflight) return _downloadPermInflight;
+  _downloadPermInflight = rolePermissionsAPI
+    .getAll()
+    .then((data) => {
+      _downloadPermCache = (data && data.download_reports) || {
+        admin: true, super_admin: true, team_leader: true, employee: false,
+      };
+      _downloadPermLoaded = true;
+      return _downloadPermCache;
+    })
+    .catch(() => {
+      _downloadPermCache = { admin: true, super_admin: true, team_leader: true, employee: false };
+      _downloadPermLoaded = true;
+      return _downloadPermCache;
+    });
+  return _downloadPermInflight;
+}
 
 export default function ScrollableTable({
   children,
@@ -62,6 +59,9 @@ export default function ScrollableTable({
   onPageChange,
   onRowsPerPageChange,
   rowsPerPageOptions = [10, 25, 50, 100],
+  // Download report
+  moduleName,             // override the filename slug
+  hideDownload  = false,  // opt-out for a specific table
   ...tableContainerProps
 }) {
   const tableRef = useRef(null);
@@ -71,6 +71,22 @@ export default function ScrollableTable({
   const [canLeft,  setCanLeft]  = useState(false);
   const [canRight, setCanRight] = useState(false);
   const [wrapRect, setWrapRect] = useState(null);
+
+  const { currentUser } = useAuth();
+  const [canDownload, setCanDownload] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    loadDownloadPerms().then((perms) => {
+      if (!alive) return;
+      const role = currentUser?.role;
+      // admin / super_admin always allowed; other roles read from server matrix.
+      if (role === "admin" || role === "super_admin") setCanDownload(true);
+      else setCanDownload(!!(perms && perms[role]));
+    });
+    return () => { alive = false; };
+  }, [currentUser?.role]);
 
   const syncScroll = useCallback(() => {
     const el = tableRef.current;
@@ -103,6 +119,22 @@ export default function ScrollableTable({
   const nudge     = (dir) => tableRef.current?.scrollBy({ left: dir * scrollStep, behavior: "smooth" });
   const startHold = (dir) => { nudge(dir); timerRef.current = setInterval(() => nudge(dir), 120); };
   const endHold   = () => clearInterval(timerRef.current);
+
+  const handleDownload = async () => {
+    if (!tableRef.current) return;
+    setExporting(true);
+    try {
+      exportTableToExcel(tableRef.current, {
+        moduleName: moduleName || inferModuleNameFromPath(),
+      });
+    } catch (e) {
+      // Surface a console error — the button is best-effort.
+      console.error("Excel export failed:", e);
+      try { window.alert("Export failed: " + (e.message || "Unknown error")); } catch (_) {}
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const getButtonStyle = (dir) => {
     if (!wrapRect) return { display: "none" };
@@ -164,9 +196,43 @@ export default function ScrollableTable({
   };
 
   const hasPagination = totalCount !== undefined && totalCount !== null;
+  const showDownload  = !hideDownload && canDownload;
 
   return (
     <Box ref={wrapRef} sx={{ position: "relative", width: "100%" }}>
+      {/* ── Toolbar ──────────────────────────────────────────────────────── */}
+      {showDownload && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            mb: 1,
+            px: 0.5,
+          }}
+        >
+          <Tooltip title="Download the current view as an Excel file">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<FileDownload sx={{ fontSize: 18 }} />}
+              onClick={handleDownload}
+              disabled={exporting}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: "8px",
+                borderColor: "#1976d2",
+                color: "#1976d2",
+                "&:hover": { borderColor: "#1565c0", bgcolor: "#e3f2fd" },
+              }}
+            >
+              {exporting ? "Exporting…" : "Download Report"}
+            </Button>
+          </Tooltip>
+        </Box>
+      )}
+
       <Fade dir={-1} />
       <Fade dir={1}  />
 
