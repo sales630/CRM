@@ -450,6 +450,7 @@ export const workgroupsAPI = {
 export const rolePermissionsAPI = {
   getAll:  () => request("GET", "/role-permissions"),
   update:  (role, modules) => request("PUT", `/role-permissions/${role}`, { modules }),
+  setDownload: (role, can_download_reports) => request("PATCH", `/role-permissions/${role}/download`, { can_download_reports }),
 };
 
 // ── Workflows ────────────────────────────────────────────────────────────────
