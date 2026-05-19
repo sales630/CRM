@@ -36,6 +36,7 @@ const DEPARTMENTS = ["Accounting", "Bookkeeping", "Tax", "Payroll", "Audit", "Ad
 const blankUser = {
   name: "", email: "", role: "employee", department: "", phone: "",
   status: "active",
+  can_download_reports: false,
 };
 
 // ── User Form Dialog ─────────────────────────────────────────────────────────
@@ -133,6 +134,32 @@ function UserFormDialog({ open, onClose, existing, onSaved }) {
             </FormControl>
           </Grid>
         </Grid>
+
+        {/* Download Reports permission (per-user) */}
+        <Box sx={{ mt: 2, p: 1.5, bgcolor: "#f1f8e9", borderRadius: 1, border: "1px solid #c5e1a5" }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={!!form.can_download_reports}
+                onChange={e => setForm(f => ({ ...f, can_download_reports: e.target.checked }))}
+                size="small"
+                disabled={form.role === "admin" || form.role === "super_admin"}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2" fontWeight={600}>
+                  ⬇️ Can download reports (Excel)
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {form.role === "admin" || form.role === "super_admin"
+                    ? "Admins always have download access"
+                    : "Shows the “Download Report” button above tables for this user"}
+                </Typography>
+              </Box>
+            }
+          />
+        </Box>
 
         {/* Role permissions info */}
         <Box sx={{ mt: 2, p: 1.5, bgcolor: "#f8f9fa", borderRadius: 1 }}>
