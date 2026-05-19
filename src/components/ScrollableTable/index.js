@@ -77,16 +77,21 @@ export default function ScrollableTable({
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-    loadDownloadPerms().then((perms) => {
-      if (!alive) return;
-      const role = currentUser?.role;
-      // admin / super_admin always allowed; other roles read from server matrix.
-      if (role === "admin" || role === "super_admin") setCanDownload(true);
-      else setCanDownload(!!(perms && perms[role]));
-    });
-    return () => { alive = false; };
-  }, [currentUser?.role]);
+    if (!currentUser) { setCanDownload(false); return; }
+    const role = currentUser.role;
+    // admin / super_admin are always allowed
+    if (role === "admin" || role === "super_admin") {
+      setCanDownload(true);
+      return;
+    }
+    // Per-user flag takes precedence when explicitly set
+    if (typeof currentUser.can_download_reports === "boolean") {
+      setCanDownload(currentUser.can_download_reports);
+      return;
+    }
+    // Fallback to role default (team_leader ON, employee OFF)
+    setCanDownload(role === "team_leader");
+  }, [currentUser]);
 
   const syncScroll = useCallback(() => {
     const el = tableRef.current;
