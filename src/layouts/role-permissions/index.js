@@ -66,6 +66,8 @@ const ROLE_META = {
 
 export default function RolePermissions() {
   const [perms, setPerms]     = useState({ team_leader: [], employee: [] });
+  const [download, setDownload] = useState({ team_leader: true, employee: false });
+  const [downloadOriginal, setDownloadOriginal] = useState({ team_leader: true, employee: false });
   const [original, setOriginal] = useState({ team_leader: [], employee: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -79,6 +81,13 @@ export default function RolePermissions() {
       const data = { team_leader: res.data?.team_leader || [], employee: res.data?.employee || [] };
       setPerms(data);
       setOriginal(JSON.parse(JSON.stringify(data)));
+      const dl = res.data?.download_reports || {};
+      const dlState = {
+        team_leader: dl.team_leader !== undefined ? !!dl.team_leader : true,
+        employee:    dl.employee    !== undefined ? !!dl.employee    : false,
+      };
+      setDownload(dlState);
+      setDownloadOriginal({ ...dlState });
     } catch (e) {
       setSnack({ msg: "Failed to load permissions", sev: "error" });
     }
@@ -100,7 +109,7 @@ export default function RolePermissions() {
     });
   };
 
-  const reset = () => { setPerms(JSON.parse(JSON.stringify(original))); setChanged(false); };
+  const reset = () => { setPerms(JSON.parse(JSON.stringify(original))); setDownload({ ...downloadOriginal }); setChanged(false); };
 
   const save = async () => {
     setSaving(true);
@@ -108,8 +117,11 @@ export default function RolePermissions() {
       await Promise.all([
         rolePermissionsAPI.update("team_leader", perms.team_leader),
         rolePermissionsAPI.update("employee",    perms.employee),
+        rolePermissionsAPI.setDownload("team_leader", download.team_leader),
+        rolePermissionsAPI.setDownload("employee",    download.employee),
       ]);
       setOriginal(JSON.parse(JSON.stringify(perms)));
+      setDownloadOriginal({ ...download });
       setChanged(false);
       setSnack({ msg: "✅ Permissions saved! Changes take effect on next login.", sev: "success" });
     } catch (e) {
@@ -190,6 +202,50 @@ export default function RolePermissions() {
             </Card>
           ))}
         </Box>
+
+        {/* ── Download Report permission card ── */}
+        <Card sx={{ mb: 2, boxShadow: "0 1px 6px rgba(0,0,0,0.07)", borderRadius: "14px", overflow: "hidden" }}>
+          <Box sx={{ px: 2.5, py: 1.2, bgcolor: "#f8f9fb", borderBottom: "1px solid #eef1f5", display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography fontWeight={700} fontSize={12} color="text.secondary" textTransform="uppercase" letterSpacing={0.8}>
+              Reports
+            </Typography>
+          </Box>
+          <Box display="grid" gridTemplateColumns={{ xs: "1fr", md: "340px 1fr 1fr" }} alignItems="center"
+            sx={{ px: 2.5, py: 1.4, "&:hover": { bgcolor: "#fafbfc" } }}>
+            <Box display="flex" alignItems="center" gap={1.5}>
+              <Typography sx={{ fontSize: 18, lineHeight: 1 }}>⬇️</Typography>
+              <Box>
+                <Typography fontSize={13} fontWeight={600} color="#263238">Download Report (Excel)</Typography>
+                <Typography fontSize={11} color="text.secondary" sx={{ opacity: 0.7 }}>
+                  Show the "Download Report" button above tables
+                </Typography>
+              </Box>
+            </Box>
+            {["team_leader", "employee"].map((role) => {
+              const on   = !!download[role];
+              const meta = ROLE_META[role];
+              return (
+                <Box key={role} display="flex" alignItems="center" gap={1.5} px={2}>
+                  <Switch
+                    checked={on}
+                    onChange={() => { setDownload((d) => ({ ...d, [role]: !d[role] })); setChanged(true); }}
+                    size="small"
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": { color: meta.color },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { bgcolor: meta.color },
+                    }}
+                  />
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    {on
+                      ? <><CheckCircle sx={{ fontSize: 14, color: "#388e3c" }} /><Typography fontSize={12} color="#388e3c" fontWeight={600}>Allowed</Typography></>
+                      : <><Cancel sx={{ fontSize: 14, color: "#bdbdbd" }} /><Typography fontSize={12} color="#bdbdbd">Hidden</Typography></>
+                    }
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </Card>
 
         {/* ── Module groups ── */}
         {MODULE_GROUPS.map(group => (
