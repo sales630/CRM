@@ -168,7 +168,7 @@ function EditProfileDialog({ open, onClose, user, onSaved }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { setError("Please choose an image file"); return; }
-    if (file.size > 5 * 1024 * 1024) { setError("Image must be 5 MB or smaller"); return; }
+    if (file.size > 20 * 1024 * 1024) { setError("Image must be 5 MB or smaller"); return; }
     setUploading(true); setError("");
     try {
       const data = await uploadFile(file);

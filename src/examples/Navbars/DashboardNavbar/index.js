@@ -32,7 +32,14 @@ import {
 } from "context";
 import { useAuth } from "context/AuthContext";
 import { useCall } from "context/CallContext";
-import { timemanAPI } from "services/api";
+import { timemanAPI, FILE_BASE_URL } from "services/api";
+
+// Build full URL for an avatar value stored on the user record.
+// Accepts absolute URLs (http...), relative server paths (/uploads/...), or empty/undefined.
+const buildAvatarSrc = (avatar) => {
+  if (!avatar) return undefined;
+  return avatar.startsWith("http") ? avatar : `${FILE_BASE_URL}${avatar}`;
+};
 import Tooltip from "@mui/material/Tooltip";
 import { Videocam, Call, People } from "@mui/icons-material";
 
@@ -189,6 +196,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
       {/* User info header */}
       <MDBox px={2} py={1.5} display="flex" alignItems="center" gap={1.5}>
         <Avatar
+          src={buildAvatarSrc(currentUser?.avatar)}
           sx={{
             width: 42,
             height: 42,
@@ -512,6 +520,7 @@ function DashboardNavbar({ absolute, light, isMini }) {
                 }}
               >
                 <Avatar
+                  src={buildAvatarSrc(currentUser?.avatar)}
                   sx={{
                     width: 30,
                     height: 30,

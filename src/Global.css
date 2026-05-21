@@ -12,6 +12,9 @@
 .MuiFormLabel-root.MuiInputLabel-root {
       color: #67748e !important;
 }
+.css-14uzwwe-MuiSwitch-root .MuiSwitch-thumb{
+      margin: 2px 0;
+}
 .MuiInputLabel-root.Mui-focused {
       color: #1976d2 !important;
 }
@@ -20,7 +23,11 @@
       color: #adb5bd !important;
       opacity: 1 !important;
 }
-
+.MuiAvatar-img.css-1v6zmq-MuiAvatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .MuiButton-contained,
 .MuiButton-contained span,
 .MuiButton-contained .MuiButton-startIcon,

@@ -51,6 +51,7 @@ app.use("/api/workflows",         require("./routes/workflows"));
 app.use("/api/role-permissions",  require("./routes/role-permissions"));
 app.use("/api/activity-logs",     require("./routes/activity-logs"));
 app.use("/api/client-limits",    require("./routes/client-limits"));
+app.use("/api/webhooks",         require("./routes/webhooks"));
 
 app.get("/api/health", (req, res) =>
   res.json({ success: true, message: "CRM API running", timestamp: new Date().toISOString() })
